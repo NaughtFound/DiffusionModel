@@ -2,10 +2,14 @@
   "cSpell.words": [
     "arange",
     "cumprod",
+    "figsize",
+    "fromarray",
     "GELU",
+    "imshow",
     "Multihead",
     "randn",
     "swapaxes",
+    "torchvision",
     "unsqueeze"
   ]
 }
