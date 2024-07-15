@@ -3,7 +3,9 @@
     "arange",
     "cumprod",
     "GELU",
+    "Multihead",
     "randn",
+    "swapaxes",
     "unsqueeze"
   ]
 }

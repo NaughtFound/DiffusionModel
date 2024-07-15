@@ -125,8 +125,47 @@ class DoubleConv(nn.Module):
 
 
 class SelfAttention(nn.Module):
-    def __init__(self) -> None:
+    def __init__(self, channels: int, size: int) -> None:
         super().__init__()
+
+        self.channels = channels
+        self.size = size
+
+        self.mha = nn.MultiheadAttention(
+            embed_dim=channels,
+            num_heads=4,
+            batch_first=True
+        )
+
+        self.ln = nn.LayerNorm(
+            normalized_shape=[channels]
+        )
+
+        self.ff = nn.Sequential(
+            nn.LayerNorm(
+                normalized_shape=[channels]
+            ),
+            nn.Linear(
+                in_features=channels,
+                out_features=channels
+            ),
+            nn.GELU(),
+            nn.Linear(
+                in_features=channels,
+                out_features=channels
+            )
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = x.view(-1, self.channels, self.size**2).swapaxes(1, 2)
+
+        x_ln = self.ln(x)
+
+        attention_value, _ = self.mha(x_ln, x_ln, x_ln)
+        attention_value = attention_value + x
+        attention_value = self.ff(attention_value) + attention_value
+
+        return attention_value.swapaxes(2, 1).view(-1, self.channels, self.size, self.size)
 
 
 class Up(nn.Module):
