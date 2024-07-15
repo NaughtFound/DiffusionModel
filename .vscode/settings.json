@@ -6,10 +6,14 @@
     "fromarray",
     "GELU",
     "imshow",
+    "levelname",
     "Multihead",
+    "optim",
     "randn",
     "swapaxes",
+    "tensorboard",
     "torchvision",
+    "unet",
     "unsqueeze"
   ]
 }
