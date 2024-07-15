@@ -36,6 +36,25 @@ class SimpleDiffusion(nn.Module):
     def t(self, n: int):
         return torch.randint(1, self.T, (n,))
 
+    def mu_theta(self, x_t: torch.Tensor, t: torch.Tensor, model: nn.Module) -> torch.Tensor:
+        alpha_t = self.alpha[t][:, None, None, None]
+        alpha_hat_t = self.alpha_hat[t][:, None, None, None]
+        beta_t = self.beta[t][:, None, None, None]
+
+        eps_theta = model.forward(x_t, t)
+
+        return 1/torch.sqrt(alpha_t) * (x_t - beta_t / torch.sqrt(1-alpha_hat_t) * eps_theta)
+
+    def sigma_theta(self, t: torch.Tensor) -> torch.Tensor:
+        # alpha_t = self.alpha[t][:, None, None, None]
+        # alpha_hat_t = self.alpha_hat[t][:, None, None, None]
+
+        beta_t = self.beta[t][:, None, None, None]
+
+        # return (1-alpha_hat_t)/(1-alpha_t) * beta_t
+
+        return beta_t
+
     @torch.no_grad()
     def sample(self, model: nn.Module, n: int):
         model.eval()
@@ -44,19 +63,11 @@ class SimpleDiffusion(nn.Module):
         for i in range(self.T, 1, -1):
             t = (torch.ones(n, device=x_t.device)*i).long()
 
-            alpha_t = self.alpha[t][:, None, None, None]
-            alpha_hat_t = self.alpha_hat[t][:, None, None, None]
-
-            beta_t = self.beta[t][:, None, None, None]
-
-            eps_theta = model.forward(x_t, t)
-
             z = torch.randn_like(x_t) if i > 1 else torch.zeros_like(x_t)
 
-            sigma_t = torch.sqrt(beta_t)
+            sigma_t = torch.sqrt(self.sigma_theta(t))
 
-            x_t = 1/torch.sqrt(alpha_t) * (x_t - beta_t /
-                                           torch.sqrt(1-alpha_hat_t) * eps_theta) + sigma_t*z
+            x_t = self.mu_theta(x_t, t, model) + sigma_t*z
 
         x_0 = (x_t.clamp(-1, 1) + 1)/2
         x_0 = (x_0*255).to(torch.uint8)
