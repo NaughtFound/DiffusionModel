@@ -2,6 +2,7 @@
   "cSpell.words": [
     "arange",
     "cumprod",
+    "GELU",
     "randn",
     "unsqueeze"
   ]

@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import torch.nn.functional as F
 
 
 class UNet(nn.Module):
@@ -40,11 +41,11 @@ class UNet(nn.Module):
             SelfAttention(64, 64),
         ])
 
-        self.bottle_neck = nn.ModuleList([
+        self.bottle_neck = nn.Sequential(
             DoubleConv(256, 512),
             DoubleConv(512, 512),
             DoubleConv(512, 256),
-        ])
+        )
 
     def pos_encoding(self, t: torch.Tensor, channels: int) -> torch.Tensor:
         inv_freq = 1.0 / (
@@ -82,8 +83,45 @@ class UNet(nn.Module):
 
 
 class DoubleConv(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int) -> None:
+    def __init__(self, in_channels: int, out_channels: int, mid_channels: int = None, residual: bool = False) -> None:
         super().__init__()
+
+        self.residual = residual
+
+        if not mid_channels:
+            mid_channels = out_channels
+
+        self.conv = nn.Sequential(
+            nn.Conv2d(
+                in_channels=in_channels,
+                out_channels=mid_channels,
+                kernel_size=3,
+                padding=1,
+                bias=False
+            ),
+            nn.GroupNorm(
+                num_groups=1,
+                num_channels=mid_channels
+            ),
+            nn.GELU(),
+            nn.Conv2d(
+                in_channels=mid_channels,
+                out_channels=out_channels,
+                kernel_size=3,
+                padding=1,
+                bias=False
+            ),
+            nn.GroupNorm(
+                num_groups=1,
+                num_channels=out_channels
+            ),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if self.residual:
+            return F.gelu(x + self.conv(x))
+        else:
+            return self.conv(x)
 
 
 class SelfAttention(nn.Module):
