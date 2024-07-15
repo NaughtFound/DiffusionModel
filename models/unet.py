@@ -130,8 +130,47 @@ class SelfAttention(nn.Module):
 
 
 class Up(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int) -> None:
+    def __init__(self, in_channels: int, out_channels: int, emb_dim: int = 256) -> None:
         super().__init__()
+
+        self.up = nn.Upsample(
+            scale_factor=2,
+            mode='bilinear',
+            align_corners=True
+        )
+
+        self.conv = nn.Sequential(
+            DoubleConv(
+                in_channels=in_channels,
+                out_channels=in_channels,
+                residual=True
+            ),
+            DoubleConv(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                mid_channels=in_channels//2
+            )
+        )
+
+        self.emb_layer = nn.Sequential(
+            nn.SiLU(),
+            nn.Linear(
+                in_features=emb_dim,
+                out_features=out_channels
+            )
+        )
+
+    def forward(self, x: torch.Tensor, skip_x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+        x = self.up(x)
+
+        x = torch.cat([skip_x, x], dim=1)
+
+        x = self.conv(x)
+
+        emb = self.emb_layer(t)[:, :, None, None].repeat(
+            1, 1, x.shape[-2], x.shape[-1])
+
+        return x + emb
 
 
 class Down(nn.Module):
