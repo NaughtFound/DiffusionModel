@@ -135,5 +135,34 @@ class Up(nn.Module):
 
 
 class Down(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int) -> None:
+    def __init__(self, in_channels: int, out_channels: int, emb_dim: int = 256) -> None:
         super().__init__()
+
+        self.conv = nn.Sequential(
+            nn.MaxPool2d(2),
+            DoubleConv(
+                in_channels=in_channels,
+                out_channels=in_channels,
+                residual=True
+            ),
+            DoubleConv(
+                in_channels=in_channels,
+                out_channels=out_channels,
+            )
+        )
+
+        self.emb_layer = nn.Sequential(
+            nn.SiLU(),
+            nn.Linear(
+                in_features=emb_dim,
+                out_features=out_channels
+            )
+        )
+
+    def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+        x = self.conv(x)
+
+        emb = self.emb_layer(t)[:, :, None, None].repeat(
+            1, 1, x.shape[-2], x.shape[-1])
+
+        return x + emb
