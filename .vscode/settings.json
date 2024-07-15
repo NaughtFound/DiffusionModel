@@ -1,6 +1,8 @@
 {
   "cSpell.words": [
+    "arange",
     "cumprod",
-    "randn"
+    "randn",
+    "unsqueeze"
   ]
 }
