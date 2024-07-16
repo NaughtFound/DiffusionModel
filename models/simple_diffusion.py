@@ -64,7 +64,7 @@ class SimpleDiffusion(nn.Module):
     def sample(self, model: nn.Module, n: int):
         model.eval()
         x_t = torch.randn(
-            (n, self.in_channels, *self.img_size),
+            (n, self.in_channels, self.img_size, self.img_size),
             device=self.device
         )
 
