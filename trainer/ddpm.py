@@ -67,15 +67,20 @@ def lunch():
     import argparse
 
     parser = argparse.ArgumentParser()
+
+    parser.add_argument('--run_name', type=str, default='DDPM_unconditional')
+    parser.add_argument('--epochs', type=int, default=500)
+    parser.add_argument('--batch_size', type=int, default=12)
+    parser.add_argument('--shuffle', type=bool, default=True)
+    parser.add_argument('--img_size', type=int, default=64)
+    parser.add_argument('--dataset_path', type=str, required=True)
+    parser.add_argument('--device', type=str, default='cuda')
+    parser.add_argument('--lr', type=float, default=3e-4)
+
     args = parser.parse_args()
 
-    args.run_name = 'DDPM_unconditional'
-    args.epochs = 500
-    args.batch_size = 12
-    args.shuffle = True
-    args.img_size = 64
-    args.dataset_path = ''
-    args.device = 'cuda'
-    args.lr = 3e-4
-
     train(args)
+
+
+if __name__ == "__main__":
+    lunch()

@@ -50,7 +50,7 @@ class UNet(nn.Module):
     def pos_encoding(self, t: torch.Tensor, channels: int) -> torch.Tensor:
         inv_freq = 1.0 / (
             1e+4 ** (
-                torch.arange(0, channels, 2, device=self.device).float() / channels)
+                torch.arange(0, channels, 2, device=t.device).float() / channels)
         )
 
         pos_enc_a = torch.sin(t.repeat(1, channels//2) * inv_freq)

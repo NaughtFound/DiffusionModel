@@ -9,6 +9,7 @@ class SimpleDiffusion(nn.Module):
         beta_start: float = 1e-4,
         beta_end: float = 2e-2,
         img_size: tuple[int, int] = (64, 64),
+        device: str = 'cpu'
     ) -> None:
         super().__init__()
 
@@ -17,13 +18,15 @@ class SimpleDiffusion(nn.Module):
         self.beta_end = beta_end
         self.img_size = img_size
 
+        self.device = device
+
         self.beta = self.beta_scheduler()
         self.alpha = 1 - self.beta
 
         self.alpha_hat = torch.cumprod(self.alpha, dim=0)
 
     def beta_scheduler(self):
-        return torch.linspace(self.beta_start, self.beta_end, self.T)
+        return torch.linspace(self.beta_start, self.beta_end, self.T, device=self.device)
 
     def forward(self, x_0: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         a = torch.sqrt(self.alpha_hat[t])[:, None, None, None]
@@ -34,7 +37,7 @@ class SimpleDiffusion(nn.Module):
         return a * x_0 + b*eps, eps
 
     def t(self, n: int):
-        return torch.randint(1, self.T, (n,))
+        return torch.randint(1, self.T, (n,), device=self.device)
 
     def mu_theta(self, x_t: torch.Tensor, t: torch.Tensor, model: nn.Module) -> torch.Tensor:
         alpha_t = self.alpha[t][:, None, None, None]
