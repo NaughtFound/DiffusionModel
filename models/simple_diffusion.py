@@ -68,14 +68,14 @@ class SimpleDiffusion(nn.Module):
             device=self.device
         )
 
-        for i in range(self.T, 1, -1):
+        for i in reversed(range(1, self.T+1)):
             t = (torch.ones(n, device=x_t.device)*i).long()
 
             z = torch.randn_like(x_t) if i > 1 else torch.zeros_like(x_t)
 
-            sigma_t = torch.sqrt(self.sigma_theta(t))
+            sigma_t = torch.sqrt(self.sigma_theta(t-1))
 
-            x_t = self.mu_theta(x_t, t, model) + sigma_t*z
+            x_t = self.mu_theta(x_t, t-1, model) + sigma_t*z
 
         x_0 = (x_t.clamp(-1, 1) + 1)/2
         x_0 = (x_0*255).to(torch.uint8)
