@@ -8,7 +8,8 @@ class SimpleDiffusion(nn.Module):
         T: int = 1000,
         beta_start: float = 1e-4,
         beta_end: float = 2e-2,
-        img_size: tuple[int, int] = (64, 64),
+        img_size: int = 64,
+        in_channels: int = 3,
         device: str = 'cpu'
     ) -> None:
         super().__init__()
@@ -17,6 +18,7 @@ class SimpleDiffusion(nn.Module):
         self.beta_start = beta_start
         self.beta_end = beta_end
         self.img_size = img_size
+        self.in_channels = in_channels
 
         self.device = device
 
@@ -61,7 +63,10 @@ class SimpleDiffusion(nn.Module):
     @torch.no_grad()
     def sample(self, model: nn.Module, n: int):
         model.eval()
-        x_t = torch.randn((n, 3, *self.img_size), device=self.device)
+        x_t = torch.randn(
+            (n, self.in_channels, *self.img_size),
+            device=self.device
+        )
 
         for i in range(self.T, 1, -1):
             t = (torch.ones(n, device=x_t.device)*i).long()
