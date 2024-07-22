@@ -58,10 +58,13 @@ class UNet(nn.Module):
 
         return torch.cat([pos_enc_a, pos_enc_b], dim=-1)
 
-    def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+    def time_encoding(self, t: torch.Tensor) -> torch.Tensor:
         t = t.unsqueeze(-1).to(torch.float)
         t = self.pos_encoding(t, self.time_dim)
 
+        return t
+
+    def encode_decode(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         x = self.inc(x)
         x_l = [x]
 
@@ -80,6 +83,11 @@ class UNet(nn.Module):
             x = self.up_attention[i](x)
 
         return self.out(x)
+
+    def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+        t = self.time_encoding(t)
+
+        return self.encode_decode(x, t)
 
 
 class DoubleConv(nn.Module):
