@@ -7,6 +7,7 @@
     "fromarray",
     "GELU",
     "imshow",
+    "lerp",
     "levelname",
     "Multihead",
     "optim",

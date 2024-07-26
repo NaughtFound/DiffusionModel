@@ -41,12 +41,13 @@ class SimpleDiffusion(nn.Module):
     def t(self, n: int):
         return torch.randint(1, self.T, (n,), device=self.device)
 
-    def mu_theta(self, x_t: torch.Tensor, t: torch.Tensor, model: nn.Module) -> torch.Tensor:
+    def predict_noise(self, x_t: torch.Tensor, t: torch.Tensor, model: nn.Module) -> torch.Tensor:
+        return model.forward(x_t, t)
+
+    def mu_theta(self, x_t: torch.Tensor, t: torch.Tensor, eps_theta: torch.Tensor) -> torch.Tensor:
         alpha_t = self.alpha[t][:, None, None, None]
         alpha_hat_t = self.alpha_hat[t][:, None, None, None]
         beta_t = self.beta[t][:, None, None, None]
-
-        eps_theta = model.forward(x_t, t)
 
         return 1/torch.sqrt(alpha_t) * (x_t - beta_t / torch.sqrt(1-alpha_hat_t) * eps_theta)
 
@@ -61,7 +62,7 @@ class SimpleDiffusion(nn.Module):
         return beta_t
 
     @torch.no_grad()
-    def sample(self, model: nn.Module, n: int):
+    def sample(self, model: nn.Module, n: int) -> torch.Tensor:
         model.eval()
         x_t = torch.randn(
             (n, self.in_channels, self.img_size, self.img_size),
@@ -75,7 +76,9 @@ class SimpleDiffusion(nn.Module):
 
             sigma_t = torch.sqrt(self.sigma_theta(t-1))
 
-            x_t = self.mu_theta(x_t, t-1, model) + sigma_t*z
+            eps_theta = self.predict_noise(x_t, t-1, model)
+
+            x_t = self.mu_theta(x_t, t-1, eps_theta) + sigma_t*z
 
         x_0 = (x_t.clamp(-1, 1) + 1)/2
         x_0 = (x_0*255).to(torch.uint8)
