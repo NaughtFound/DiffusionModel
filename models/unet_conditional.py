@@ -16,7 +16,9 @@ class ConditionalUNet(UNet):
 
         self.label_emb = nn.Embedding(num_classes, time_dim)
 
-    def forward(self, x: torch.Tensor, t: torch.Tensor, y: torch.Tensor = None) -> torch.Tensor:
+    def forward(
+        self, x: torch.Tensor, t: torch.Tensor, y: torch.Tensor = None
+    ) -> torch.Tensor:
         t = self.time_encoding(t)
 
         if y is not None:

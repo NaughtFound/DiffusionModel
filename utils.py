@@ -25,26 +25,24 @@ def save_images(images: torch.Tensor, path: str, **kwargs):
 
 
 def create_dataset(args: dict) -> DataLoader:
-    transform = transforms.Compose([
-        transforms.Resize(80),
-        transforms.RandomResizedCrop(args.img_size, scale=(0.8, 1.0)),
-        transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-    ])
+    transform = transforms.Compose(
+        [
+            transforms.Resize(80),
+            transforms.RandomResizedCrop(args.img_size, scale=(0.8, 1.0)),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        ]
+    )
 
     dataset = datasets.ImageFolder(args.dataset_path, transform=transform)
 
-    dataloader = DataLoader(
-        dataset,
-        batch_size=args.batch_size,
-        shuffle=args.shuffle
-    )
+    dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=args.shuffle)
 
     return dataloader
 
 
 def setup_logging(run_name: str):
-    os.makedirs('models', exist_ok=True)
-    os.makedirs('results', exist_ok=True)
-    os.makedirs(os.path.join('models', run_name), exist_ok=True)
-    os.makedirs(os.path.join('results', run_name), exist_ok=True)
+    os.makedirs("models", exist_ok=True)
+    os.makedirs("results", exist_ok=True)
+    os.makedirs(os.path.join("models", run_name), exist_ok=True)
+    os.makedirs(os.path.join("results", run_name), exist_ok=True)
