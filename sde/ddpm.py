@@ -9,7 +9,7 @@ class SDE_DDPM_Forward(nn.Module):
     def _beta(self, t: torch.Tensor):
         pass
 
-    def s_theta(t: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    def s_theta(self, t: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         pass
 
     def f(self, t: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
