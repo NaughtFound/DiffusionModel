@@ -9,13 +9,13 @@ class SDE_DDPM_Forward(nn.Module):
     def _beta(self, t: torch.Tensor):
         pass
 
-    def s_theta(self, t: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    def s_theta(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         pass
 
-    def f(self, t: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        return -0.5 * self._beta(t) * y
+    def f(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+        return -0.5 * self._beta(t) * x
 
-    def g(self, t: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    def g(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         return torch.sqrt(self._beta(t))
 
 
@@ -31,12 +31,12 @@ class SDE_DDPM_Reverse(nn.Module):
 
         self.forward_sde = forward_sde
 
-    def f(self, t: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        f1 = self.forward_sde.f(-t, y)
-        f2 = self.forward_sde.g(-t, y) ** 2 * self.forward_sde.s_theta(-t, y)
+    def f(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+        f1 = self.forward_sde.f(-t, x)
+        f2 = self.forward_sde.g(-t, x) ** 2 * self.forward_sde.s_theta(-t, x)
 
         return -(f1 - f2)
 
-    def g(self, t: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        g = self.forward_sde.g(-t, y)
+    def g(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+        g = self.forward_sde.g(-t, x)
         return -g
