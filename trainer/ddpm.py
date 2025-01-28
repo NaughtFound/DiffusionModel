@@ -1,6 +1,6 @@
 import os
 import utils
-from models.unet import UNet
+from models.unet.base import UNet
 from models.simple_diffusion import SimpleDiffusion
 import torch
 from torch import optim, nn

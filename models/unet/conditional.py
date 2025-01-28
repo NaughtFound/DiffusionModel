@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from models.unet import UNet
+from .base import UNet
 
 
 class ConditionalUNet(UNet):
