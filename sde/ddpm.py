@@ -2,15 +2,42 @@ import torch
 import torch.nn as nn
 
 
+class SDE_DDPM_Params:
+    eps_theta: nn.Module
+    beta_start: float
+    beta_end: float
+    T: int
+
+    def __init__(self, device: torch.device):
+        self.device = device
+
+        self.eps_theta = None
+        self.beta_start = 1e-4
+        self.beta_end = 0.02
+        self.T = 1000
+
+        self.beta = self.beta_scheduler()
+
+    def beta_scheduler(self):
+        return torch.linspace(
+            self.beta_start,
+            self.beta_end,
+            self.T,
+            device=self.device,
+        )
+
+
 class SDE_DDPM_Forward(nn.Module):
-    def __init__(self):
+    def __init__(self, args: SDE_DDPM_Params):
         super().__init__()
 
+        self.args = args
+
     def _beta(self, t: torch.Tensor):
-        pass
+        return self.args.beta[t]
 
     def s_theta(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
-        pass
+        return self.args.eps_theta(x=x, t=t)
 
     def f(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         return -0.5 * self._beta(t) * x
