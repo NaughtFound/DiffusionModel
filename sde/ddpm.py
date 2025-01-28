@@ -14,17 +14,6 @@ class SDE_DDPM_Params:
         self.eps_theta = None
         self.beta_start = 1e-4
         self.beta_end = 0.02
-        self.T = 1000
-
-        self.beta = self.beta_scheduler()
-
-    def beta_scheduler(self):
-        return torch.linspace(
-            self.beta_start,
-            self.beta_end,
-            self.T,
-            device=self.device,
-        )
 
 
 class SDE_DDPM_Forward(nn.Module):
@@ -34,7 +23,10 @@ class SDE_DDPM_Forward(nn.Module):
         self.args = args
 
     def _beta(self, t: torch.Tensor):
-        return self.args.beta[t]
+        b_s = self.args.beta_start
+        b_e = self.args.beta_end
+
+        return b_s + t * (b_e - b_s)
 
     def s_theta(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         return self.args.eps_theta(x=x, t=t)
