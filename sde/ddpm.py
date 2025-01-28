@@ -28,6 +28,10 @@ class SDE_DDPM_Forward(nn.Module):
 
         return b_s + t * (b_e - b_s)
 
+    def _alpha_hat(self, t: torch.Tensor) -> torch.Tensor:
+        alpha = 1 - self._beta(t)
+        return torch.cumprod(alpha, dim=0)
+
     def s_theta(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         return self.args.eps_theta(x=x, t=t)
 
@@ -36,6 +40,18 @@ class SDE_DDPM_Forward(nn.Module):
 
     def g(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         return torch.sqrt(self._beta(t))
+
+    def forward(
+        self,
+        x_0: torch.Tensor,
+        t: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        a = torch.sqrt(self._alpha_hat(t))[:, None, None, None]
+        b = torch.sqrt(1.0 - self._alpha_hat(t))[:, None, None, None]
+
+        eps = torch.rand_like(x_0)
+
+        return a * x_0 + b * eps, eps
 
 
 class SDE_DDPM_Reverse(nn.Module):
@@ -59,3 +75,6 @@ class SDE_DDPM_Reverse(nn.Module):
     def g(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         g = self.forward_sde.g(-t, x)
         return -g
+
+    def forward(self) -> torch.Tensor:
+        pass
