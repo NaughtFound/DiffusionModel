@@ -1,7 +1,7 @@
 import os
 import utils
 from models.unet.base import UNet
-from models.simple_diffusion import SimpleDiffusion
+from models.diffusion.ddpm import Diffusion_DDPM
 import torch
 from torch import optim, nn
 from torch.utils.tensorboard.writer import SummaryWriter
@@ -29,7 +29,7 @@ def train(args: dict):
     optimizer = optim.AdamW(model.parameters(), lr=args.lr)
     mse = nn.MSELoss()
 
-    diffusion = SimpleDiffusion(
+    diffusion = Diffusion_DDPM(
         T=args.T,
         beta_start=args.beta_start,
         beta_end=args.beta_end,

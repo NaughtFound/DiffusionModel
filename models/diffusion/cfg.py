@@ -1,10 +1,10 @@
 import torch
 from torch import nn
 
-from models.simple_diffusion import SimpleDiffusion
+from .ddpm import Diffusion_DDPM
 
 
-class CFGDiffusion(SimpleDiffusion):
+class Diffusion_CFG(Diffusion_DDPM):
     def __init__(
         self,
         T: int = 1000,

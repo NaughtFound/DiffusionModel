@@ -1,7 +1,7 @@
 import os
 import utils
-from models.unet_conditional import ConditionalUNet
-from models.cfg_diffusion import CFGDiffusion
+from models.unet.conditional import ConditionalUNet
+from models.diffusion.cfg import Diffusion_CFG
 import torch
 from torch import optim, nn
 from torch.utils.tensorboard.writer import SummaryWriter
@@ -31,7 +31,7 @@ def train(args: dict):
     optimizer = optim.AdamW(model.parameters(), lr=args.lr)
     mse = nn.MSELoss()
 
-    diffusion = CFGDiffusion(
+    diffusion = Diffusion_CFG(
         T=args.T,
         beta_start=args.beta_start,
         beta_end=args.beta_end,

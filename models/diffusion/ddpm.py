@@ -2,7 +2,7 @@ import torch
 from torch import nn
 
 
-class SimpleDiffusion(nn.Module):
+class Diffusion_DDPM(nn.Module):
     def __init__(
         self,
         T: int = 1000,
