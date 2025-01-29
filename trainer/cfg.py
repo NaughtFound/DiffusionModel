@@ -81,27 +81,49 @@ def train(args: Namespace):
         utils.save_model(model, args.run_name, f"ckpt-{epoch}.pt")
 
 
+def create_default_args():
+    args = Namespace()
+    args.run_name = "CFG"
+    args.epochs = 500
+    args.batch_size = 12
+    args.shuffle = True
+    args.img_size = 64
+    args.in_channels = 3
+    args.T = 1000
+    args.beta_start = 1e-4
+    args.beta_end = 2e-2
+    args.time_dim = 256
+    args.device = "cuda"
+    args.lr = 3e-4
+    args.alpha = 0.1
+    args.cfg_scale = 0.1
+
+    return args
+
+
 def lunch():
     import argparse
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--run_name", type=str, default="CFG")
-    parser.add_argument("--epochs", type=int, default=500)
-    parser.add_argument("--batch_size", type=int, default=12)
-    parser.add_argument("--shuffle", type=bool, default=True)
-    parser.add_argument("--img_size", type=int, default=64)
-    parser.add_argument("--in_channels", type=int, default=3)
-    parser.add_argument("--T", type=int, default=1000)
-    parser.add_argument("--beta_start", type=float, default=1e-4)
-    parser.add_argument("--beta_end", type=float, default=2e-2)
-    parser.add_argument("--time_dim", type=int, default=256)
+    d_args = create_default_args()
+
+    parser.add_argument("--run_name", type=str, default=d_args.run_name)
+    parser.add_argument("--epochs", type=int, default=d_args.epochs)
+    parser.add_argument("--batch_size", type=int, default=d_args.batch_size)
+    parser.add_argument("--shuffle", type=bool, default=d_args.shuffle)
+    parser.add_argument("--img_size", type=int, default=d_args.img_size)
+    parser.add_argument("--in_channels", type=int, default=d_args.in_channels)
+    parser.add_argument("--T", type=int, default=d_args.T)
+    parser.add_argument("--beta_start", type=float, default=d_args.beta_start)
+    parser.add_argument("--beta_end", type=float, default=d_args.beta_end)
+    parser.add_argument("--time_dim", type=int, default=d_args.time_dim)
     parser.add_argument("--dataset_path", type=str, required=True)
-    parser.add_argument("--device", type=str, default="cuda")
-    parser.add_argument("--lr", type=float, default=3e-4)
+    parser.add_argument("--device", type=str, default=d_args.device)
+    parser.add_argument("--lr", type=float, default=d_args.lr)
     parser.add_argument("--num_classes", type=int, required=True)
-    parser.add_argument("--alpha", type=float, default=0.1)
-    parser.add_argument("--cfg_scale", type=float, default=0.1)
+    parser.add_argument("--alpha", type=float, default=d_args.alpha)
+    parser.add_argument("--cfg_scale", type=float, default=d_args.cfg_scale)
 
     args = parser.parse_args()
 
