@@ -1,61 +1,58 @@
 import torch
 from torch import nn
-import modules as m
+from . import modules as m
 
 
 class UNet(nn.Module):
     def __init__(
         self,
         in_channels: int = 3,
+        mid_channels: int = 64,
         out_channels: int = 3,
         time_dim: int = 256,
+        emb_dim: int = 256,
+        features: list[int] = [128, 256],
+        neck_features: list[int] = [512],
     ) -> None:
         super().__init__()
 
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.time_dim = time_dim
+        self.emb_dim = emb_dim
 
-        self.inc = m.DoubleConv(in_channels, 64)
-        self.out = nn.Conv2d(64, out_channels, kernel_size=1)
+        self.inc = m.DoubleConv(in_channels, mid_channels)
+        self.out = nn.Conv2d(mid_channels, out_channels, kernel_size=1)
 
-        self.down = nn.ModuleList(
-            [
-                m.Down(64, 128),
-                m.Down(128, 256),
-                m.Down(256, 256),
-            ]
-        )
+        self.down = nn.ModuleList()
+        self.down_attention = nn.ModuleList()
+        self.bottle_neck = nn.Sequential()
+        self.up = nn.ModuleList()
+        self.up_attention = nn.ModuleList()
 
-        self.up = nn.ModuleList(
-            [
-                m.Up(512, 128),
-                m.Up(256, 64),
-                m.Up(128, 64),
-            ]
-        )
+        f_before = mid_channels
+        for f in features:
+            self.down.append(m.Down(f_before, f, emb_dim))
+            self.down_attention.append(m.SelfAttention(f))
+            f_before = f
 
-        self.down_attention = nn.ModuleList(
-            [
-                m.SelfAttention(128, 32),
-                m.SelfAttention(256, 16),
-                m.SelfAttention(256, 8),
-            ]
-        )
+        self.down.append(m.Down(features[-1], features[-1], emb_dim))
+        self.down_attention.append(m.SelfAttention(features[-1]))
 
-        self.up_attention = nn.ModuleList(
-            [
-                m.SelfAttention(128, 16),
-                m.SelfAttention(64, 32),
-                m.SelfAttention(64, 64),
-            ]
-        )
+        n_before = features[-1]
 
-        self.bottle_neck = nn.Sequential(
-            m.DoubleConv(256, 512),
-            m.DoubleConv(512, 512),
-            m.DoubleConv(512, 256),
-        )
+        for n in neck_features:
+            self.bottle_neck.append(m.DoubleConv(n_before, n))
+            n_before = n
+
+        self.bottle_neck.append(m.DoubleConv(n_before, features[-1]))
+
+        for f in reversed(features):
+            self.up.append(m.Up(f * 2, f // 2, emb_dim))
+            self.up_attention.append(m.SelfAttention(f // 2))
+
+        self.up.append(m.Up(f, mid_channels))
+        self.up_attention.append(m.SelfAttention(mid_channels))
 
     def pos_encoding(self, t: torch.Tensor, channels: int) -> torch.Tensor:
         inv_freq = 1.0 / (

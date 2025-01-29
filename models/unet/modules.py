@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import math
 
 
 class DoubleConv(nn.Module):
@@ -49,15 +50,15 @@ class SelfAttention(nn.Module):
     def __init__(
         self,
         channels: int,
-        size: int,
     ) -> None:
         super().__init__()
 
         self.channels = channels
-        self.size = size
 
         self.mha = nn.MultiheadAttention(
-            embed_dim=channels, num_heads=4, batch_first=True
+            embed_dim=channels,
+            num_heads=4,
+            batch_first=True,
         )
 
         self.ln = nn.LayerNorm(normalized_shape=[channels])
@@ -70,7 +71,10 @@ class SelfAttention(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = x.view(-1, self.channels, self.size**2).swapaxes(1, 2)
+        batch_size = x.size(0)
+        size = int(math.sqrt(x.numel() // self.channels // batch_size))
+
+        x = x.view(-1, self.channels, size**2).swapaxes(1, 2)
 
         x_ln = self.ln(x)
 
@@ -79,7 +83,10 @@ class SelfAttention(nn.Module):
         attention_value = self.ff(attention_value) + attention_value
 
         return attention_value.swapaxes(2, 1).view(
-            -1, self.channels, self.size, self.size
+            -1,
+            self.channels,
+            size,
+            size,
         )
 
 
@@ -96,7 +103,9 @@ class Up(nn.Module):
 
         self.conv = nn.Sequential(
             DoubleConv(
-                in_channels=in_channels, out_channels=in_channels, residual=True
+                in_channels=in_channels,
+                out_channels=in_channels,
+                residual=True,
             ),
             DoubleConv(
                 in_channels=in_channels,
@@ -106,11 +115,15 @@ class Up(nn.Module):
         )
 
         self.emb_layer = nn.Sequential(
-            nn.SiLU(), nn.Linear(in_features=emb_dim, out_features=out_channels)
+            nn.SiLU(),
+            nn.Linear(in_features=emb_dim, out_features=out_channels),
         )
 
     def forward(
-        self, x: torch.Tensor, skip_x: torch.Tensor, t: torch.Tensor
+        self,
+        x: torch.Tensor,
+        skip_x: torch.Tensor,
+        t: torch.Tensor,
     ) -> torch.Tensor:
         x = self.up(x)
 
@@ -135,7 +148,9 @@ class Down(nn.Module):
         self.conv = nn.Sequential(
             nn.MaxPool2d(2),
             DoubleConv(
-                in_channels=in_channels, out_channels=in_channels, residual=True
+                in_channels=in_channels,
+                out_channels=in_channels,
+                residual=True,
             ),
             DoubleConv(
                 in_channels=in_channels,
@@ -144,7 +159,8 @@ class Down(nn.Module):
         )
 
         self.emb_layer = nn.Sequential(
-            nn.SiLU(), nn.Linear(in_features=emb_dim, out_features=out_channels)
+            nn.SiLU(),
+            nn.Linear(in_features=emb_dim, out_features=out_channels),
         )
 
     def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
