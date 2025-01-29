@@ -42,8 +42,6 @@ def create_dataset(args: Namespace) -> Dataset:
         ]
     )
 
-    print(datasets)
-
     dataset = datasets.ImageFolder(args.dataset_path, transform=transform)
 
     return dataset
