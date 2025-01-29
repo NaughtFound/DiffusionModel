@@ -77,13 +77,8 @@ def train(args: Namespace):
             labels=labels,
             cfg_scale=args.cfg_scale,
         )
-        utils.save_images(
-            sampled_images, os.path.join("results", args.run_name, f"{epoch}.jpg")
-        )
-        torch.save(
-            model.state_dict(),
-            os.path.join("models", args.run_name, f"ckpt-{epoch}.pt"),
-        )
+        utils.save_images(sampled_images, args.run_name, f"{epoch}.jpg")
+        utils.save_model(model, args.run_name, f"ckpt-{epoch}.pt")
 
 
 def lunch():
