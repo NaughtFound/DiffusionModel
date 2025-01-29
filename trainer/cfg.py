@@ -21,7 +21,8 @@ def train(args: Namespace):
     utils.setup_logging(args.run_name)
     device = args.device
 
-    dataloader = utils.create_dataset(args)
+    dataset = utils.create_dataset(args)
+    dataloader = utils.create_dataloader(dataset, args)
 
     model = ConditionalUNet(
         in_channels=args.in_channels,

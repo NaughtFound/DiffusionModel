@@ -4,7 +4,8 @@ import torchvision
 from torchvision import transforms, datasets
 from PIL import Image
 from matplotlib import pyplot as plt
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
+from argparse import Namespace
 
 
 def plot_images(images: torch.Tensor, **kwargs):
@@ -24,10 +25,9 @@ def save_images(images: torch.Tensor, path: str, **kwargs):
     image.save(path)
 
 
-def create_dataset(args: dict) -> DataLoader:
+def create_dataset(args: Namespace) -> Dataset:
     transform = transforms.Compose(
         [
-            transforms.Resize(80),
             transforms.RandomResizedCrop(args.img_size, scale=(0.8, 1.0)),
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
@@ -36,6 +36,10 @@ def create_dataset(args: dict) -> DataLoader:
 
     dataset = datasets.ImageFolder(args.dataset_path, transform=transform)
 
+    return dataset
+
+
+def create_dataloader(dataset: Dataset, args: Namespace) -> DataLoader:
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=args.shuffle)
 
     return dataloader
