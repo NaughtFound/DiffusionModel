@@ -1,5 +1,6 @@
 import os
 import utils
+from argparse import Namespace
 from models.unet.conditional import ConditionalUNet
 from models.diffusion.cfg import Diffusion_CFG
 import torch
@@ -16,7 +17,7 @@ logging.basicConfig(
 )
 
 
-def train(args: dict):
+def train(args: Namespace):
     utils.setup_logging(args.run_name)
     device = args.device
 

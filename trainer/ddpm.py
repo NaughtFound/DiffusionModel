@@ -1,10 +1,11 @@
 import os
-import utils
-from models.unet.base import UNet
-from models.diffusion.ddpm import Diffusion_DDPM
 import torch
 from torch import optim, nn
 from torch.utils.tensorboard.writer import SummaryWriter
+from argparse import Namespace
+import utils
+from models.unet.base import UNet
+from models.diffusion.ddpm import Diffusion_DDPM
 import logging
 
 
@@ -15,7 +16,7 @@ logging.basicConfig(
 )
 
 
-def train(args: dict):
+def train(args: Namespace):
     utils.setup_logging(args.run_name)
     device = args.device
 
