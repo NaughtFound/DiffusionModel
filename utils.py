@@ -34,6 +34,9 @@ def save_model(model: nn.Module, run_name: str, file_name: str):
 
 
 def create_dataset(args: Namespace) -> Dataset:
+    if hasattr(args, "dataset"):
+        return args.dataset
+
     transform = transforms.Compose(
         [
             transforms.RandomResizedCrop(args.img_size, scale=(0.8, 1.0)),
@@ -42,7 +45,10 @@ def create_dataset(args: Namespace) -> Dataset:
         ]
     )
 
-    dataset = datasets.ImageFolder(args.dataset_path, transform=transform)
+    dataset = datasets.ImageFolder(
+        root=args.dataset_path,
+        transform=transform,
+    )
 
     return dataset
 

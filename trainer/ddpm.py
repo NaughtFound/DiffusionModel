@@ -1,8 +1,8 @@
 import os
-import torch
 from torch import optim, nn
 from torch.utils.tensorboard.writer import SummaryWriter
 from argparse import Namespace
+from tqdm import tqdm
 import utils
 from models.unet.base import UNet
 from models.diffusion.ddpm import Diffusion_DDPM
@@ -47,7 +47,12 @@ def train(args: Namespace):
     for epoch in range(args.epochs):
         logging.info(f"Starting epoch {epoch}")
 
-        for i, (images, _) in enumerate(dataloader):
+        for i, (images, _) in enumerate(
+            tqdm(
+                dataloader,
+                desc=f"Training [{epoch + 1}/{args.epochs}]",
+            )
+        ):
             images = images.to(device)
             t = diffusion.t(images.shape[0])
 
