@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from models.diffusion.base import Diffusion
 
 
 class SDE_DDPM_Params:
@@ -78,3 +79,21 @@ class SDE_DDPM_Reverse(nn.Module):
 
     def forward(self) -> torch.Tensor:
         pass
+
+
+class SDE_DDPM(Diffusion):
+    def __init__(self, args: SDE_DDPM_Params):
+        super().__init__()
+
+        self.f_sde = SDE_DDPM_Forward(args)
+        self.r_sde = SDE_DDPM_Reverse(self.f_sde)
+
+    def forward(
+        self,
+        x_0: torch.Tensor,
+        t: torch.Tensor,
+    ):
+        return self.f_sde.forward(x_0, t)
+
+    def sample(self):
+        return self.r_sde.forward()

@@ -1,8 +1,9 @@
 import torch
 from torch import nn
+from .base import Diffusion
 
 
-class Diffusion_DDPM(nn.Module):
+class Diffusion_DDPM(Diffusion):
     def __init__(
         self,
         T: int = 1000,
@@ -29,7 +30,10 @@ class Diffusion_DDPM(nn.Module):
 
     def beta_scheduler(self):
         return torch.linspace(
-            self.beta_start, self.beta_end, self.T, device=self.device
+            self.beta_start,
+            self.beta_end,
+            self.T,
+            device=self.device,
         )
 
     def forward(self, x_0: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
@@ -44,12 +48,18 @@ class Diffusion_DDPM(nn.Module):
         return torch.randint(1, self.T, (n,), device=self.device)
 
     def predict_noise(
-        self, x_t: torch.Tensor, t: torch.Tensor, model: nn.Module
+        self,
+        x_t: torch.Tensor,
+        t: torch.Tensor,
+        model: nn.Module,
     ) -> torch.Tensor:
         return model.forward(x_t, t)
 
     def mu_theta(
-        self, x_t: torch.Tensor, t: torch.Tensor, eps_theta: torch.Tensor
+        self,
+        x_t: torch.Tensor,
+        t: torch.Tensor,
+        eps_theta: torch.Tensor,
     ) -> torch.Tensor:
         alpha_t = self.alpha[t][:, None, None, None]
         alpha_hat_t = self.alpha_hat[t][:, None, None, None]
