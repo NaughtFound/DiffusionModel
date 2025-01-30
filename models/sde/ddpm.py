@@ -7,7 +7,6 @@ class SDE_DDPM_Params:
     eps_theta: nn.Module
     beta_start: float
     beta_end: float
-    T: int
 
     def __init__(self, device: torch.device):
         self.device = device
@@ -97,3 +96,6 @@ class SDE_DDPM(Diffusion):
 
     def sample(self):
         return self.r_sde.forward()
+
+    def predict_noise(self, x_t: torch.Tensor, t: torch.Tensor):
+        return self.f_sde.s_theta(t, x_t)

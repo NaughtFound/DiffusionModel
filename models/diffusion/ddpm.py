@@ -6,6 +6,7 @@ from .base import Diffusion
 class Diffusion_DDPM(Diffusion):
     def __init__(
         self,
+        noise_predictor: nn.Module,
         T: int = 1000,
         beta_start: float = 1e-4,
         beta_end: float = 2e-2,
@@ -14,6 +15,8 @@ class Diffusion_DDPM(Diffusion):
         device: str = "cpu",
     ) -> None:
         super().__init__()
+
+        self.noise_predictor = noise_predictor
 
         self.T = T
         self.beta_start = beta_start
@@ -51,9 +54,8 @@ class Diffusion_DDPM(Diffusion):
         self,
         x_t: torch.Tensor,
         t: torch.Tensor,
-        model: nn.Module,
     ) -> torch.Tensor:
-        return model.forward(x_t, t)
+        return self.noise_predictor(x_t, t)
 
     def mu_theta(
         self,
@@ -82,8 +84,8 @@ class Diffusion_DDPM(Diffusion):
         return beta_t
 
     @torch.no_grad()
-    def sample(self, model: nn.Module, n: int) -> torch.Tensor:
-        model.eval()
+    def sample(self, n: int) -> torch.Tensor:
+        self.noise_predictor.eval()
         x_t = torch.randn(
             (n, self.in_channels, self.img_size, self.img_size), device=self.device
         )
@@ -95,7 +97,7 @@ class Diffusion_DDPM(Diffusion):
 
             sigma_t = torch.sqrt(self.sigma_theta(t - 1))
 
-            eps_theta = self.predict_noise(x_t, t - 1, model)
+            eps_theta = self.predict_noise(x_t, t - 1)
 
             x_t = self.mu_theta(x_t, t - 1, eps_theta) + sigma_t * z
 

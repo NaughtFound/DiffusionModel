@@ -2,18 +2,40 @@ import os
 from torch import optim, nn
 from torch.utils.tensorboard.writer import SummaryWriter
 from argparse import Namespace
+import logging
 from tqdm import tqdm
 import utils
 from models.unet.base import UNet
+from models.diffusion.base import Diffusion
 from models.diffusion.ddpm import Diffusion_DDPM
-import logging
-
+from models.sde.ddpm import SDE_DDPM, SDE_DDPM_Params
 
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s: %(message)s",
     level=logging.INFO,
     datefmt="%I:%M:%S",
 )
+
+
+def create_diffusion_model(args: Namespace) -> Diffusion:
+    if args.model_type == "default":
+        return Diffusion_DDPM(
+            noise_predictor=args.eps_theta,
+            T=args.T,
+            beta_start=args.beta_start,
+            beta_end=args.beta_end,
+            img_size=args.img_size,
+            in_channels=args.in_channels,
+            device=args.device,
+        )
+
+    if args.model_type == "sde":
+        params = SDE_DDPM_Params(args.device)
+        params.eps_theta = args.eps_theta
+        params.beta_start = args.beta_start
+        params.beta_end = args.beta_end
+
+        return SDE_DDPM(params)
 
 
 def train(args: Namespace):
@@ -23,22 +45,17 @@ def train(args: Namespace):
     dataset = utils.create_dataset(args)
     dataloader = utils.create_dataloader(dataset, args)
 
-    model = UNet(
+    eps_theta = UNet(
         in_channels=args.in_channels,
         out_channels=args.in_channels,
         time_dim=args.time_dim,
     ).to(device)
-    optimizer = optim.AdamW(model.parameters(), lr=args.lr)
+    optimizer = optim.AdamW(eps_theta.parameters(), lr=args.lr)
     mse = nn.MSELoss()
 
-    diffusion = Diffusion_DDPM(
-        T=args.T,
-        beta_start=args.beta_start,
-        beta_end=args.beta_end,
-        img_size=args.img_size,
-        in_channels=args.in_channels,
-        device=device,
-    )
+    args.eps_theta = eps_theta
+
+    diffusion = create_diffusion_model(args)
 
     logger = SummaryWriter(os.path.join("runs", args.run_name))
 
@@ -47,17 +64,17 @@ def train(args: Namespace):
     for epoch in range(args.epochs):
         logging.info(f"Starting epoch {epoch}")
 
-        for i, (images, _) in enumerate(
+        for i, batch in enumerate(
             tqdm(
                 dataloader,
                 desc=f"Training [{epoch + 1}/{args.epochs}]",
             )
         ):
-            images = images.to(device)
+            images = batch[0].to(device)
             t = diffusion.t(images.shape[0])
 
             x_t, noise = diffusion.forward(images, t)
-            noise_pred = model(x_t, t)
+            noise_pred = diffusion.predict_noise(x_t, t)
 
             loss = mse(noise, noise_pred)
 
@@ -67,14 +84,15 @@ def train(args: Namespace):
 
             logger.add_scalar("MSE", loss.item(), global_step=epoch * len_data + i)
 
-        sampled_images = diffusion.sample(model, n=images.shape[0])
+        sampled_images = diffusion.sample(n=images.shape[0])
         utils.save_images(sampled_images, args.run_name, f"{epoch}.jpg")
-        utils.save_model(model, args.run_name, f"ckpt-{epoch}.pt")
+        utils.save_model(eps_theta, args.run_name, f"ckpt-{epoch}.pt")
 
 
 def create_default_args():
     args = Namespace()
     args.run_name = "DDPM_unconditional"
+    args.model_type = "default"
     args.epochs = 500
     args.batch_size = 12
     args.shuffle = True
@@ -98,6 +116,7 @@ def lunch():
     d_args = create_default_args()
 
     parser.add_argument("--run_name", type=str, default=d_args.run_name)
+    parser.add_argument("--model_type", type=str, default=d_args.model_type)
     parser.add_argument("--epochs", type=int, default=d_args.epochs)
     parser.add_argument("--batch_size", type=int, default=d_args.batch_size)
     parser.add_argument("--shuffle", type=bool, default=d_args.shuffle)
