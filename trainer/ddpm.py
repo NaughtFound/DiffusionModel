@@ -106,17 +106,18 @@ def train(args: Namespace):
 
             logger.add_scalar("MSE", loss.item(), global_step=epoch * len_data + i)
 
-        logging.info(f"Sampling for epoch {epoch+1}")
-        sampled_images = diffusion.sample(n=images.shape[0])
-        logging.info(f"Saving results for epoch {epoch+1}")
-        utils.save_images(sampled_images, args.run_name, f"{epoch}.jpg")
-        utils.save_state_dict(
-            eps_theta,
-            optimizer,
-            epoch,
-            args.run_name,
-            f"ckpt-{epoch}.pt",
-        )
+        if epoch % args.save_freq == 0:
+            logging.info(f"Sampling for epoch {epoch+1}")
+            sampled_images = diffusion.sample(n=images.shape[0])
+            logging.info(f"Saving results for epoch {epoch+1}")
+            utils.save_images(sampled_images, args.run_name, f"{epoch}.jpg")
+            utils.save_state_dict(
+                eps_theta,
+                optimizer,
+                epoch,
+                args.run_name,
+                f"ckpt-{epoch}.pt",
+            )
 
 
 def create_default_args():
@@ -135,6 +136,7 @@ def create_default_args():
     args.device = "cuda"
     args.lr = 3e-4
     args.checkpoint = None
+    args.save_freq = 5
 
     return args
 
@@ -161,6 +163,7 @@ def lunch():
     parser.add_argument("--device", type=str, default=d_args.device)
     parser.add_argument("--lr", type=float, default=d_args.lr)
     parser.add_argument("--checkpoint", type=str, default=d_args.checkpoint)
+    parser.add_argument("--save_freq", type=int, default=d_args.save_freq)
 
     args = parser.parse_args()
 
