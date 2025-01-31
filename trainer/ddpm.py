@@ -43,7 +43,7 @@ def load_last_checkpoint(args: Namespace):
         in_channels=args.in_channels,
         out_channels=args.in_channels,
         time_dim=args.time_dim,
-    )
+    ).to(args.device)
 
     optimizer = optim.AdamW(eps_theta.parameters(), lr=args.lr)
 
@@ -106,6 +106,7 @@ def train(args: Namespace):
 
             logger.add_scalar("MSE", loss.item(), global_step=epoch * len_data + i)
 
+        logging.info(f"Sampling for epoch {epoch+1}")
         sampled_images = diffusion.sample(n=images.shape[0])
         logging.info(f"Saving results for epoch {epoch+1}")
         utils.save_images(sampled_images, args.run_name, f"{epoch}.jpg")
