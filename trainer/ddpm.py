@@ -49,7 +49,7 @@ def load_last_checkpoint(args: Namespace):
 
     last_epoch = 0
 
-    if hasattr(args, "checkpoint"):
+    if hasattr(args, "checkpoint") and args.checkpoint is not None:
         logging.info(f"Loading checkpoint {args.checkpoint}")
         last_epoch = utils.load_state_dict(
             eps_theta,
