@@ -59,7 +59,7 @@ def load_last_checkpoint(args: Namespace):
             args.device,
         )
 
-    eps_theta.to(args.device)
+        eps_theta.to(args.device)
 
     return eps_theta, optimizer, last_epoch
 
