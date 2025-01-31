@@ -38,6 +38,32 @@ def create_diffusion_model(args: Namespace) -> Diffusion:
         return SDE_DDPM(params)
 
 
+def load_last_checkpoint(args: Namespace):
+    eps_theta = UNet(
+        in_channels=args.in_channels,
+        out_channels=args.in_channels,
+        time_dim=args.time_dim,
+    )
+
+    optimizer = optim.AdamW(eps_theta.parameters(), lr=args.lr)
+
+    last_epoch = 0
+
+    if hasattr(args, "checkpoint"):
+        logging.info(f"Loading checkpoint {args.checkpoint}")
+        last_epoch = utils.load_state_dict(
+            eps_theta,
+            optimizer,
+            args.run_name,
+            args.checkpoint,
+            args.device,
+        )
+
+    eps_theta.to(args.device)
+
+    return eps_theta, optimizer, last_epoch
+
+
 def train(args: Namespace):
     utils.setup_logging(args.run_name)
     device = args.device
@@ -45,12 +71,8 @@ def train(args: Namespace):
     dataset = utils.create_dataset(args)
     dataloader = utils.create_dataloader(dataset, args)
 
-    eps_theta = UNet(
-        in_channels=args.in_channels,
-        out_channels=args.in_channels,
-        time_dim=args.time_dim,
-    ).to(device)
-    optimizer = optim.AdamW(eps_theta.parameters(), lr=args.lr)
+    eps_theta, optimizer, last_epoch = load_last_checkpoint(args)
+
     mse = nn.MSELoss()
 
     args.eps_theta = eps_theta
@@ -61,8 +83,8 @@ def train(args: Namespace):
 
     len_data = len(dataloader)
 
-    for epoch in range(args.epochs):
-        logging.info(f"Starting epoch {epoch}")
+    for epoch in range(last_epoch, args.epochs):
+        logging.info(f"Starting epoch {epoch+1}")
 
         for i, batch in enumerate(
             tqdm(
@@ -85,8 +107,15 @@ def train(args: Namespace):
             logger.add_scalar("MSE", loss.item(), global_step=epoch * len_data + i)
 
         sampled_images = diffusion.sample(n=images.shape[0])
+        logging.info(f"Saving results for epoch {epoch+1}")
         utils.save_images(sampled_images, args.run_name, f"{epoch}.jpg")
-        utils.save_model(eps_theta, args.run_name, f"ckpt-{epoch}.pt")
+        utils.save_state_dict(
+            eps_theta,
+            optimizer,
+            epoch,
+            args.run_name,
+            f"ckpt-{epoch}.pt",
+        )
 
 
 def create_default_args():
@@ -104,6 +133,7 @@ def create_default_args():
     args.time_dim = 256
     args.device = "cuda"
     args.lr = 3e-4
+    args.checkpoint = None
 
     return args
 
@@ -129,6 +159,7 @@ def lunch():
     parser.add_argument("--dataset_path", type=str, required=True)
     parser.add_argument("--device", type=str, default=d_args.device)
     parser.add_argument("--lr", type=float, default=d_args.lr)
+    parser.add_argument("--checkpoint", type=str, default=d_args.checkpoint)
 
     args = parser.parse_args()
 

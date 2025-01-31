@@ -1,6 +1,6 @@
 import os
 import torch
-import torch.nn as nn
+from torch import nn, optim
 import torchvision
 from torchvision import transforms, datasets
 from PIL import Image
@@ -26,11 +26,40 @@ def save_images(images: torch.Tensor, run_name: str, file_name: str, **kwargs):
     image.save(os.path.join("results", run_name, file_name))
 
 
-def save_model(model: nn.Module, run_name: str, file_name: str):
+def save_state_dict(
+    model: nn.Module,
+    optimizer: optim.Optimizer,
+    epoch: int,
+    run_name: str,
+    file_name: str,
+):
+    state_dict = {
+        "model": model.state_dict(),
+        "optimizer": optimizer.state_dict(),
+        "epoch": epoch,
+    }
+
     torch.save(
-        model.state_dict(),
+        state_dict,
         os.path.join("weights", run_name, file_name),
     )
+
+
+def load_state_dict(
+    model: nn.Module,
+    optimizer: optim.Optimizer,
+    run_name: str,
+    file_name: str,
+    device: torch.device,
+) -> int:
+    path = os.path.join("weights", run_name, file_name)
+    if os.path.exists(path):
+        state_dict = torch.load(path, weights_only=True, map_location=device)
+        model.load_state_dict(state_dict.get("model"))
+        optimizer.load_state_dict(state_dict.get("optimizer"))
+        return state_dict.get("epoch")
+
+    return 0
 
 
 def create_dataset(args: Namespace) -> Dataset:
