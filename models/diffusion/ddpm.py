@@ -85,23 +85,29 @@ class Diffusion_DDPM(Diffusion):
 
     @torch.no_grad()
     def sample(self, n: int) -> torch.Tensor:
-        self.noise_predictor.eval()
         x_t = torch.randn(
-            (n, self.in_channels, self.img_size, self.img_size), device=self.device
+            (n, self.in_channels, self.img_size, self.img_size),
+            device=self.device,
         )
 
-        for i in reversed(range(1, self.T + 1)):
+        for i in reversed(range(1, self.T)):
             t = (torch.ones(n, device=x_t.device) * i).long()
 
             z = torch.randn_like(x_t) if i > 1 else torch.zeros_like(x_t)
 
-            sigma_t = torch.sqrt(self.sigma_theta(t - 1))
+            sigma_t = torch.sqrt(self.sigma_theta(t))
 
-            eps_theta = self.predict_noise(x_t, t - 1)
+            eps_theta = self.predict_noise(x_t, t)
 
-            x_t = self.mu_theta(x_t, t - 1, eps_theta) + sigma_t * z
+            x_t = self.mu_theta(x_t, t, eps_theta) + sigma_t * z
 
         x_0 = (x_t.clamp(-1, 1) + 1) / 2
         x_0 = (x_0 * 255).to(torch.uint8)
 
         return x_0
+
+    def eval(self):
+        self.noise_predictor.eval()
+
+    def train(self):
+        self.noise_predictor.train()

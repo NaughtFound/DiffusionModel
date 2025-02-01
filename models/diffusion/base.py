@@ -20,3 +20,11 @@ class Diffusion(ABC):
     @abstractmethod
     def predict_noise(self, *args: Any, **kwargs: Any) -> torch.Tensor:
         pass
+
+    @abstractmethod
+    def eval(self):
+        pass
+
+    @abstractmethod
+    def train(self):
+        pass

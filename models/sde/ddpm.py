@@ -125,3 +125,11 @@ class SDE_DDPM(Diffusion):
 
     def predict_noise(self, x_t: torch.Tensor, t: torch.Tensor):
         return self.f_sde.s_theta(t, x_t)
+
+    def eval(self):
+        self.f_sde.eval()
+        self.args.eps_theta.eval()
+
+    def train(self):
+        self.f_sde.train()
+        self.args.eps_theta.train()
