@@ -17,10 +17,10 @@ logging.basicConfig(
 )
 
 
-def create_diffusion_model(args: Namespace) -> Diffusion:
+def create_diffusion_model(eps_theta: nn.Module, args: Namespace) -> Diffusion:
     if args.model_type == "default":
         return Diffusion_DDPM(
-            noise_predictor=args.eps_theta,
+            noise_predictor=eps_theta,
             T=args.T,
             beta_start=args.beta_start,
             beta_end=args.beta_end,
@@ -31,9 +31,10 @@ def create_diffusion_model(args: Namespace) -> Diffusion:
 
     if args.model_type == "sde":
         params = SDE_DDPM_Params(args.device)
-        params.eps_theta = args.eps_theta
+        params.eps_theta = eps_theta
         params.beta_start = args.beta_start
         params.beta_end = args.beta_end
+        params.input_size = (args.in_channels, args.img_size, args.img_size)
 
         return SDE_DDPM(params)
 
@@ -75,9 +76,7 @@ def train(args: Namespace):
 
     mse = nn.MSELoss()
 
-    args.eps_theta = eps_theta
-
-    diffusion = create_diffusion_model(args)
+    diffusion = create_diffusion_model(eps_theta, args)
 
     logger = SummaryWriter(os.path.join("runs", args.run_name))
 

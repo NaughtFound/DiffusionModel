@@ -73,14 +73,20 @@ class SDE_DDPM_Reverse(nn.Module):
         self.args = args
 
     def f(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+        x = x.view(-1, *self.args.input_size)
+
         f1 = self.forward_sde.f(-t, x)
         f2 = self.forward_sde.g(-t, x) ** 2 * self.forward_sde.s_theta(-t, x)
 
-        return -(f1 - f2)
+        f = -(f1 - f2)
+
+        return f.flatten(1)
 
     def g(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+        x = x.view(-1, *self.args.input_size)
+
         g = self.forward_sde.g(-t, x)
-        return -g
+        return -g.flatten(1)
 
     @torch.no_grad()
     def forward(self, n: int, dt: float = 1e-2) -> torch.Tensor:
@@ -96,8 +102,13 @@ class SDE_DDPM(Diffusion):
     def __init__(self, args: SDE_DDPM_Params):
         super().__init__()
 
+        self.args = args
+
         self.f_sde = SDE_DDPM_Forward(args)
         self.r_sde = SDE_DDPM_Reverse(self.f_sde, args)
+
+    def t(self, n: int):
+        return torch.rand((n,), device=self.args.device)
 
     def forward(
         self,

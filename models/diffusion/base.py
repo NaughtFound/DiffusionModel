@@ -6,6 +6,10 @@ import torch
 
 class Diffusion(ABC):
     @abstractmethod
+    def t(self, *args: Any, **kwargs: Any) -> torch.Tensor:
+        pass
+
+    @abstractmethod
     def forward(self, *args: Any, **kwargs: Any) -> tuple[torch.Tensor, torch.Tensor]:
         pass
 
