@@ -43,7 +43,7 @@ class SDE_DDPM_Forward(nn.Module):
         return -0.5 * self._beta(t) * x
 
     def g(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
-        return torch.sqrt(self._beta(t))
+        return torch.sqrt(self._beta(t)).expand_as(x)
 
     def forward(
         self,
@@ -95,7 +95,10 @@ class SDE_DDPM_Reverse(nn.Module):
 
         x_s = torchsde.sdeint(self, x_t.flatten(1), t, dt=dt).view(len(t), *x_t.size())
 
-        return x_s
+        x_0 = (x_s.clamp(-1, 1) + 1) / 2
+        x_0 = (x_0 * 255).to(torch.uint8)
+
+        return x_0
 
 
 class SDE_DDPM(Diffusion):
