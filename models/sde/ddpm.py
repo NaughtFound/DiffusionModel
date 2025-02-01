@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torchsde
 from models.diffusion.base import Diffusion
 
 
@@ -7,6 +8,7 @@ class SDE_DDPM_Params:
     eps_theta: nn.Module
     beta_start: float
     beta_end: float
+    input_size: tuple[int, int, int]
 
     def __init__(self, device: torch.device):
         self.device = device
@@ -14,6 +16,8 @@ class SDE_DDPM_Params:
         self.eps_theta = None
         self.beta_start = 1e-4
         self.beta_end = 0.02
+
+        self.input_size = (1, 28, 28)
 
 
 class SDE_DDPM_Forward(nn.Module):
@@ -61,10 +65,12 @@ class SDE_DDPM_Reverse(nn.Module):
     def __init__(
         self,
         forward_sde: SDE_DDPM_Forward,
+        args: SDE_DDPM_Params,
     ):
         super().__init__()
 
         self.forward_sde = forward_sde
+        self.args = args
 
     def f(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         f1 = self.forward_sde.f(-t, x)
@@ -76,8 +82,14 @@ class SDE_DDPM_Reverse(nn.Module):
         g = self.forward_sde.g(-t, x)
         return -g
 
-    def forward(self) -> torch.Tensor:
-        pass
+    @torch.no_grad()
+    def forward(self, n: int, dt: float = 1e-2) -> torch.Tensor:
+        t = torch.tensor([-1, 0], device=self.args.device)
+        x_t = torch.randn(size=(n, *self.args.input_size), device=self.args.device)
+
+        x_s = torchsde.sdeint(self, x_t.flatten(1), t, dt=dt).view(len(t), *x_t.size())
+
+        return x_s
 
 
 class SDE_DDPM(Diffusion):
@@ -85,7 +97,7 @@ class SDE_DDPM(Diffusion):
         super().__init__()
 
         self.f_sde = SDE_DDPM_Forward(args)
-        self.r_sde = SDE_DDPM_Reverse(self.f_sde)
+        self.r_sde = SDE_DDPM_Reverse(self.f_sde, args)
 
     def forward(
         self,
@@ -94,8 +106,8 @@ class SDE_DDPM(Diffusion):
     ):
         return self.f_sde.forward(x_0, t)
 
-    def sample(self):
-        return self.r_sde.forward()
+    def sample(self, n: int):
+        return self.r_sde.forward(n)[-1]
 
     def predict_noise(self, x_t: torch.Tensor, t: torch.Tensor):
         return self.f_sde.s_theta(t, x_t)
