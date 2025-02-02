@@ -106,19 +106,19 @@ def train(args: Namespace):
 
             logger.add_scalar("MSE", loss.item(), global_step=epoch * len_data + i)
 
-        if epoch % args.save_freq == 0:
+        if (epoch + 1) % args.save_freq == 0:
             logging.info(f"Sampling for epoch {epoch+1}")
             diffusion.eval()
             sampled_images = diffusion.sample(n=images.shape[0])
             diffusion.train()
             logging.info(f"Saving results for epoch {epoch+1}")
-            utils.save_images(sampled_images, args.run_name, f"{epoch}.jpg")
+            utils.save_images(sampled_images, args.run_name, f"{epoch+1}.jpg")
             utils.save_state_dict(
                 eps_theta,
                 optimizer,
                 epoch,
                 args.run_name,
-                f"ckpt-{epoch}.pt",
+                f"ckpt-{epoch+1}.pt",
             )
 
 
