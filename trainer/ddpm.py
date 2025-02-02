@@ -99,7 +99,7 @@ def train(args: Namespace):
             loss.backward()
             optimizer.step()
 
-            logger.add_scalar("MSE", loss.item(), global_step=epoch * len_data + i)
+            logger.add_scalar("Loss", loss.item(), global_step=epoch * len_data + i)
 
         if (epoch + 1) % args.save_freq == 0:
             logging.info(f"Sampling for epoch {epoch+1}")
