@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torchsde
 from models.diffusion.base import Diffusion
+from utils import fill_tail_dims
 
 
 class SDE_DDPM_Params:
@@ -40,7 +41,7 @@ class SDE_DDPM_Forward(nn.Module):
 
     def analytical_mean(self, x_0: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         mean_coef = (-0.5 * (self._indefinite_int(t) - self._indefinite_int(0))).exp()
-        mean = x_0 * mean_coef
+        mean = x_0 * fill_tail_dims(mean_coef, x_0)
         return mean
 
     def analytical_var(self, t: torch.Tensor) -> torch.Tensor:
@@ -51,7 +52,7 @@ class SDE_DDPM_Forward(nn.Module):
     def analytical_sample(self, x_0: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         mean = self.analytical_mean(x_0, t)
         var = self.analytical_var(t)
-        return mean + torch.randn_like(mean) * var.sqrt()
+        return mean + torch.randn_like(mean) * fill_tail_dims(var.sqrt(), mean)
 
     @torch.no_grad()
     def analytical_score(
@@ -62,7 +63,7 @@ class SDE_DDPM_Forward(nn.Module):
     ) -> torch.Tensor:
         mean = self.analytical_mean(x_0, t)
         var = self.analytical_var(t)
-        return -(x_t - mean) / var.clamp_min(1e-5)
+        return -(x_t - mean) / fill_tail_dims(var, mean).clamp_min(1e-5)
 
     def s_theta(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         return self.args.eps_theta(x=x, t=t)
@@ -71,7 +72,7 @@ class SDE_DDPM_Forward(nn.Module):
         return -0.5 * self._beta(t) * x
 
     def g(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
-        return torch.sqrt(self._beta(t)).expand_as(x)
+        return fill_tail_dims(self._beta(t).sqrt(), x).expand_as(x)
 
 
 class SDE_DDPM_Reverse(nn.Module):
@@ -157,6 +158,6 @@ class SDE_DDPM(Diffusion):
         score_pred = self.f_sde.s_theta(t, x_t)
         score_true = self.f_sde.analytical_score(x_t, x_0, t)
 
-        loss = lambda_t * ((score_pred - score_true) ** 2)
+        loss = fill_tail_dims(lambda_t, x_t) * ((score_pred - score_true) ** 2)
 
-        return loss.flatten(1).sum(dim=1)
+        return loss.mean()

@@ -93,3 +93,7 @@ def setup_logging(run_name: str):
     os.makedirs("results", exist_ok=True)
     os.makedirs(os.path.join("weights", run_name), exist_ok=True)
     os.makedirs(os.path.join("results", run_name), exist_ok=True)
+
+
+def fill_tail_dims(x: torch.Tensor, x_like: torch.Tensor):
+    return x[(...,) + (None,) * (x_like.dim() - x.dim())]
