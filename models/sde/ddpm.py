@@ -44,13 +44,13 @@ class SDE_DDPM_Forward(nn.Module):
         return mean
 
     def analytical_var(self, t: torch.Tensor) -> torch.Tensor:
-        analytical_var = 1 - (-self._indefinite_int(t) + self._indefinite_int(0)).exp()
-        return analytical_var
+        var = 1 - (-self._indefinite_int(t) + self._indefinite_int(0)).exp()
+        return var
 
     @torch.no_grad()
     def analytical_sample(self, x_0: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         mean = self.analytical_mean(x_0, t)
-        var = self.analytical_var(x_0, t)
+        var = self.analytical_var(t)
         return mean + torch.randn_like(mean) * var.sqrt()
 
     @torch.no_grad()
@@ -61,7 +61,7 @@ class SDE_DDPM_Forward(nn.Module):
         t: torch.Tensor,
     ) -> torch.Tensor:
         mean = self.analytical_mean(x_0, t)
-        var = self.analytical_var(x_0, t)
+        var = self.analytical_var(t)
         return -(x_t - mean) / var.clamp_min(1e-5)
 
     def s_theta(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
