@@ -32,10 +32,6 @@ class SDE_DDPM_Forward(nn.Module):
 
         return b_s + t * (b_e - b_s)
 
-    def _alpha_hat(self, t: torch.Tensor) -> torch.Tensor:
-        alpha = 1 - self._beta(t)
-        return torch.cumprod(alpha, dim=0)
-
     def _indefinite_int(self, t: torch.Tensor) -> torch.Tensor:
         b_s = self.args.beta_start
         b_e = self.args.beta_end
@@ -76,18 +72,6 @@ class SDE_DDPM_Forward(nn.Module):
 
     def g(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         return torch.sqrt(self._beta(t)).expand_as(x)
-
-    def forward(
-        self,
-        x_0: torch.Tensor,
-        t: torch.Tensor,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        a = torch.sqrt(self._alpha_hat(t))[:, None, None, None]
-        b = torch.sqrt(1.0 - self._alpha_hat(t))[:, None, None, None]
-
-        eps = torch.rand_like(x_0)
-
-        return a * x_0 + b * eps, eps
 
 
 class SDE_DDPM_Reverse(nn.Module):
@@ -150,7 +134,7 @@ class SDE_DDPM(Diffusion):
         x_0: torch.Tensor,
         t: torch.Tensor,
     ):
-        return self.f_sde.forward(x_0, t)
+        return self.f_sde.analytical_sample(x_0, t)
 
     def sample(self, n: int):
         return self.r_sde.forward(n)[-1]
@@ -167,10 +151,10 @@ class SDE_DDPM(Diffusion):
         self.args.eps_theta.train()
 
     def calc_loss(self, x_0: torch.Tensor, t: torch.Tensor):
-        score_pred = self.forward(x_0, t)
-
         x_t = self.f_sde.analytical_sample(x_0, t)
         lambda_t = self.f_sde.analytical_var(t)
+
+        score_pred = self.f_sde.s_theta(t, x_t)
         score_true = self.f_sde.analytical_score(x_t, x_0, t)
 
         loss = lambda_t * ((score_pred - score_true) ** 2)
