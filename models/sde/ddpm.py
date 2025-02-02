@@ -36,6 +36,38 @@ class SDE_DDPM_Forward(nn.Module):
         alpha = 1 - self._beta(t)
         return torch.cumprod(alpha, dim=0)
 
+    def _indefinite_int(self, t: torch.Tensor) -> torch.Tensor:
+        b_s = self.args.beta_start
+        b_e = self.args.beta_end
+
+        return b_s * t + 0.5 * t**2 * (b_e - b_s)
+
+    def analytical_mean(self, x_0: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+        mean_coef = (-0.5 * (self._indefinite_int(t) - self._indefinite_int(0))).exp()
+        mean = x_0 * mean_coef
+        return mean
+
+    def analytical_var(self, t: torch.Tensor) -> torch.Tensor:
+        analytical_var = 1 - (-self._indefinite_int(t) + self._indefinite_int(0)).exp()
+        return analytical_var
+
+    @torch.no_grad()
+    def analytical_sample(self, x_0: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+        mean = self.analytical_mean(x_0, t)
+        var = self.analytical_var(x_0, t)
+        return mean + torch.randn_like(mean) * var.sqrt()
+
+    @torch.no_grad()
+    def analytical_score(
+        self,
+        x_t: torch.Tensor,
+        x_0: torch.Tensor,
+        t: torch.Tensor,
+    ) -> torch.Tensor:
+        mean = self.analytical_mean(x_0, t)
+        var = self.analytical_var(x_0, t)
+        return -(x_t - mean) / var.clamp_min(1e-5)
+
     def s_theta(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         return self.args.eps_theta(x=x, t=t)
 
@@ -133,3 +165,14 @@ class SDE_DDPM(Diffusion):
     def train(self):
         self.f_sde.train()
         self.args.eps_theta.train()
+
+    def calc_loss(self, x_0: torch.Tensor, t: torch.Tensor):
+        score_pred = self.forward(x_0, t)
+
+        x_t = self.f_sde.analytical_sample(x_0, t)
+        lambda_t = self.f_sde.analytical_var(t)
+        score_true = self.f_sde.analytical_score(x_t, x_0, t)
+
+        loss = lambda_t * ((score_pred - score_true) ** 2)
+
+        return loss.flatten(1).sum(dim=1)
