@@ -74,8 +74,6 @@ def train(args: Namespace):
 
     eps_theta, optimizer, last_epoch = load_last_checkpoint(args)
 
-    mse = nn.MSELoss()
-
     diffusion = create_diffusion_model(eps_theta, args)
     diffusion.train()
 
@@ -95,10 +93,7 @@ def train(args: Namespace):
             images = batch[0].to(device)
             t = diffusion.t(images.shape[0])
 
-            x_t, noise = diffusion.forward(images, t)
-            noise_pred = diffusion.predict_noise(x_t, t)
-
-            loss = mse(noise, noise_pred)
+            loss = diffusion.calc_loss(images, t)
 
             optimizer.zero_grad()
             loss.backward()

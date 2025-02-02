@@ -22,6 +22,10 @@ class Diffusion(ABC):
         pass
 
     @abstractmethod
+    def calc_loss(self, *args: Any, **kwargs: Any) -> torch.Tensor:
+        pass
+
+    @abstractmethod
     def eval(self):
         pass
 

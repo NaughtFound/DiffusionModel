@@ -106,6 +106,16 @@ class Diffusion_DDPM(Diffusion):
 
         return x_0
 
+    def calc_loss(self, x_0: torch.Tensor, t: torch.Tensor):
+        mse = nn.MSELoss()
+
+        x_t, noise = self.forward(x_0, t)
+        noise_pred = self.predict_noise(x_t, t)
+
+        loss = mse(noise, noise_pred)
+
+        return loss
+
     def eval(self):
         self.noise_predictor.eval()
 
