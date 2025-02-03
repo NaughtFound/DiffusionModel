@@ -1,13 +1,15 @@
 import os
-import utils
-from argparse import Namespace
-from models.unet.conditional import ConditionalUNet
-from models.diffusion.cfg import Diffusion_CFG
 import torch
+import numpy as np
 from torch import optim, nn
 from torch.utils.tensorboard.writer import SummaryWriter
-import numpy as np
+from argparse import Namespace
 import logging
+from tqdm import tqdm
+from models.unet.conditional import ConditionalUNet
+from models.diffusion.cfg import Diffusion_CFG
+from models.diffusion.base import Diffusion
+import utils
 
 
 logging.basicConfig(
@@ -17,6 +19,49 @@ logging.basicConfig(
 )
 
 
+def create_diffusion_model(eps_theta: nn.Module, args: Namespace) -> Diffusion:
+    if args.model_type == "default":
+        return Diffusion_CFG(
+            noise_predictor=eps_theta,
+            T=args.T,
+            beta_start=args.beta_start,
+            beta_end=args.beta_end,
+            img_size=args.img_size,
+            in_channels=args.in_channels,
+            device=args.device,
+        )
+
+    if args.model_type == "sde":
+        raise NotImplementedError("sde for cfg is not created yet")
+
+
+def load_last_checkpoint(args: Namespace):
+    eps_theta = ConditionalUNet(
+        in_channels=args.in_channels,
+        out_channels=args.in_channels,
+        time_dim=args.time_dim,
+        num_classes=args.num_classes,
+    ).to(args.device)
+
+    optimizer = optim.AdamW(eps_theta.parameters(), lr=args.lr)
+
+    last_epoch = 0
+
+    if hasattr(args, "checkpoint") and args.checkpoint is not None:
+        logging.info(f"Loading checkpoint {args.checkpoint}")
+        last_epoch = utils.load_state_dict(
+            eps_theta,
+            optimizer,
+            args.run_name,
+            args.checkpoint,
+            args.device,
+        )
+
+        eps_theta.to(args.device)
+
+    return eps_theta, optimizer, last_epoch
+
+
 def train(args: Namespace):
     utils.setup_logging(args.run_name)
     device = args.device
@@ -24,34 +69,26 @@ def train(args: Namespace):
     dataset = utils.create_dataset(args)
     dataloader = utils.create_dataloader(dataset, args)
 
-    model = ConditionalUNet(
-        in_channels=args.in_channels,
-        out_channels=args.in_channels,
-        time_dim=args.time_dim,
-        num_classes=args.num_classes,
-    ).to(device)
-    optimizer = optim.AdamW(model.parameters(), lr=args.lr)
+    eps_theta, optimizer, last_epoch = load_last_checkpoint(args)
 
-    diffusion = Diffusion_CFG(
-        T=args.T,
-        beta_start=args.beta_start,
-        beta_end=args.beta_end,
-        img_size=args.img_size,
-        in_channels=args.in_channels,
-        device=device,
-    )
+    diffusion = create_diffusion_model(eps_theta, args)
+    diffusion.train()
 
     logger = SummaryWriter(os.path.join("runs", args.run_name))
 
     len_data = len(dataloader)
 
-    for epoch in range(args.epochs):
-        logging.info(f"Starting epoch {epoch}")
+    for epoch in range(last_epoch, args.epochs):
+        logging.info(f"Starting epoch {epoch+1}")
 
-        for i, (images, labels) in enumerate(dataloader):
-            images = images.to(device)
-            labels = labels.to(device)
-
+        for i, batch in enumerate(
+            tqdm(
+                dataloader,
+                desc=f"Training [{epoch + 1}/{args.epochs}]",
+            )
+        ):
+            images = batch[0].to(device)
+            labels = batch[1].to(device)
             t = diffusion.t(images.shape[0])
 
             if np.random.random() < args.alpha:
@@ -65,20 +102,31 @@ def train(args: Namespace):
 
             logger.add_scalar("Loss", loss.item(), global_step=epoch * len_data + i)
 
-        labels = torch.arange(args.num_classes).long().to(device)
-        sampled_images = diffusion.sample(
-            model,
-            n=images.shape[0],
-            labels=labels,
-            cfg_scale=args.cfg_scale,
-        )
-        utils.save_images(sampled_images, args.run_name, f"{epoch}.jpg")
-        utils.save_model(model, args.run_name, f"ckpt-{epoch}.pt")
+        if (epoch + 1) % args.save_freq == 0:
+            logging.info(f"Sampling for epoch {epoch+1}")
+            diffusion.eval()
+            labels = torch.arange(args.num_classes).long().to(device)
+            sampled_images = diffusion.sample(
+                n=images.shape[0],
+                labels=labels,
+                cfg_scale=args.cfg_scale,
+            )
+            diffusion.train()
+            logging.info(f"Saving results for epoch {epoch+1}")
+            utils.save_images(sampled_images, args.run_name, f"{epoch+1}.jpg")
+            utils.save_state_dict(
+                eps_theta,
+                optimizer,
+                epoch,
+                args.run_name,
+                f"ckpt-{epoch+1}.pt",
+            )
 
 
 def create_default_args():
     args = Namespace()
     args.run_name = "CFG"
+    args.model_type = "default"
     args.epochs = 500
     args.batch_size = 12
     args.shuffle = True
@@ -92,6 +140,8 @@ def create_default_args():
     args.lr = 3e-4
     args.alpha = 0.1
     args.cfg_scale = 0.1
+    args.checkpoint = None
+    args.save_freq = 5
 
     return args
 
@@ -104,6 +154,7 @@ def lunch():
     d_args = create_default_args()
 
     parser.add_argument("--run_name", type=str, default=d_args.run_name)
+    parser.add_argument("--model_type", type=str, default=d_args.model_type)
     parser.add_argument("--epochs", type=int, default=d_args.epochs)
     parser.add_argument("--batch_size", type=int, default=d_args.batch_size)
     parser.add_argument("--shuffle", type=bool, default=d_args.shuffle)
@@ -119,6 +170,8 @@ def lunch():
     parser.add_argument("--num_classes", type=int, required=True)
     parser.add_argument("--alpha", type=float, default=d_args.alpha)
     parser.add_argument("--cfg_scale", type=float, default=d_args.cfg_scale)
+    parser.add_argument("--checkpoint", type=str, default=d_args.checkpoint)
+    parser.add_argument("--save_freq", type=int, default=d_args.save_freq)
 
     args = parser.parse_args()
 
