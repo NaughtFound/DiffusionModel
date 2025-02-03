@@ -9,6 +9,8 @@ class SDE_DDPM_Params:
     eps_theta: nn.Module
     beta_start: float
     beta_end: float
+    t0: float
+    t1: float
     input_size: tuple[int, int, int]
 
     def __init__(self, device: torch.device):
@@ -17,6 +19,9 @@ class SDE_DDPM_Params:
         self.eps_theta = None
         self.beta_start = 1e-4
         self.beta_end = 0.02
+
+        self.t0 = 0
+        self.t1 = 1
 
         self.input_size = (1, 28, 28)
 
@@ -40,12 +45,14 @@ class SDE_DDPM_Forward(nn.Module):
         return b_s * t + 0.5 * t**2 * (b_e - b_s)
 
     def analytical_mean(self, x_0: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
-        mean_coef = (-0.5 * (self._indefinite_int(t) - self._indefinite_int(0))).exp()
+        mean_coef = (
+            -0.5 * (self._indefinite_int(t) - self._indefinite_int(self.args.t0))
+        ).exp()
         mean = x_0 * fill_tail_dims(mean_coef, x_0)
         return mean
 
     def analytical_var(self, t: torch.Tensor) -> torch.Tensor:
-        var = 1 - (-self._indefinite_int(t) + self._indefinite_int(0)).exp()
+        var = 1 - (-self._indefinite_int(t) + self._indefinite_int(self.args.t0)).exp()
         return var
 
     @torch.no_grad()
@@ -107,7 +114,7 @@ class SDE_DDPM_Reverse(nn.Module):
 
     @torch.no_grad()
     def forward(self, n: int, dt: float = 1e-2) -> torch.Tensor:
-        t = torch.tensor([-1, 0], device=self.args.device)
+        t = torch.tensor([-self.args.t1, -self.args.t0], device=self.args.device)
         x_t = torch.randn(size=(n, *self.args.input_size), device=self.args.device)
 
         x_s = torchsde.sdeint(self, x_t.flatten(1), t, dt=dt).view(len(t), *x_t.size())
@@ -128,7 +135,8 @@ class SDE_DDPM(Diffusion):
         self.r_sde = SDE_DDPM_Reverse(self.f_sde, args)
 
     def t(self, n: int):
-        return torch.rand((n,), device=self.args.device)
+        r = torch.rand((n,), device=self.args.device)
+        return self.args.t0 + (self.args.t1 - self.args.t0) * r
 
     def forward(
         self,
