@@ -50,7 +50,6 @@ class Diffusion_CFG(Diffusion_DDPM):
         labels: torch.Tensor,
         cfg_scale: float,
     ) -> torch.Tensor:
-        self.noise_predictor.eval()
         x_t = torch.randn(
             (n, self.in_channels, self.img_size, self.img_size),
             device=self.device,
@@ -71,3 +70,18 @@ class Diffusion_CFG(Diffusion_DDPM):
         x_0 = (x_0 * 255).to(torch.uint8)
 
         return x_0
+
+    def calc_loss(
+        self,
+        x_0: torch.Tensor,
+        t: torch.Tensor,
+        labels: torch.Tensor,
+    ) -> torch.Tensor:
+        mse = nn.MSELoss()
+
+        x_t, noise = self.forward(x_0, t)
+        noise_pred = self.predict_noise(x_t, t, labels)
+
+        loss = mse(noise, noise_pred)
+
+        return loss

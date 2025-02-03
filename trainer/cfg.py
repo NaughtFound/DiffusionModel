@@ -31,7 +31,6 @@ def train(args: Namespace):
         num_classes=args.num_classes,
     ).to(device)
     optimizer = optim.AdamW(model.parameters(), lr=args.lr)
-    mse = nn.MSELoss()
 
     diffusion = Diffusion_CFG(
         T=args.T,
@@ -55,20 +54,16 @@ def train(args: Namespace):
 
             t = diffusion.t(images.shape[0])
 
-            x_t, noise = diffusion.forward(images, t)
-
             if np.random.random() < args.alpha:
                 labels = None
 
-            noise_pred = model(x_t, t, labels)
-
-            loss = mse(noise, noise_pred)
+            loss = diffusion.calc_loss(images, t, labels)
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-            logger.add_scalar("MSE", loss.item(), global_step=epoch * len_data + i)
+            logger.add_scalar("Loss", loss.item(), global_step=epoch * len_data + i)
 
         labels = torch.arange(args.num_classes).long().to(device)
         sampled_images = diffusion.sample(
