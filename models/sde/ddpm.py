@@ -32,7 +32,7 @@ class SDE_DDPM_Forward(nn.Module):
 
         self.args = args
 
-    def _beta(self, t: torch.Tensor):
+    def _beta(self, t: torch.Tensor) -> torch.Tensor:
         b_s = self.args.beta_start
         b_e = self.args.beta_end
 
@@ -45,14 +45,20 @@ class SDE_DDPM_Forward(nn.Module):
         return b_s * t + 0.5 * t**2 * (b_e - b_s)
 
     def analytical_mean(self, x_0: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
-        mean_coef = (
-            -0.5 * (self._indefinite_int(t) - self._indefinite_int(self.args.t0))
-        ).exp()
+        int_t = self._indefinite_int(t)
+        int_t_0 = self._indefinite_int(self.args.t0)
+
+        mean_coef = (-0.5 * (int_t - int_t_0)).exp()
         mean = x_0 * fill_tail_dims(mean_coef, x_0)
+
         return mean
 
     def analytical_var(self, t: torch.Tensor) -> torch.Tensor:
-        var = 1 - (-self._indefinite_int(t) + self._indefinite_int(self.args.t0)).exp()
+        int_t = self._indefinite_int(t)
+        int_t_0 = self._indefinite_int(self.args.t0)
+
+        var = 1 - (-int_t + int_t_0).exp()
+
         return var
 
     @torch.no_grad()
