@@ -94,7 +94,7 @@ def train(args: Namespace):
             if np.random.random() < args.alpha:
                 labels = None
 
-            loss = diffusion.calc_loss(images, t, labels)
+            loss = diffusion.calc_loss(images, t, labels, args.cfg_scale)
 
             optimizer.zero_grad()
             loss.backward()

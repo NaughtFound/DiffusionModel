@@ -76,11 +76,12 @@ class Diffusion_CFG(Diffusion_DDPM):
         x_0: torch.Tensor,
         t: torch.Tensor,
         labels: torch.Tensor,
+        cfg_scale: float,
     ) -> torch.Tensor:
         mse = nn.MSELoss()
 
         x_t, noise = self.forward(x_0, t)
-        noise_pred = self.predict_noise(x_t, t, labels)
+        noise_pred = self.predict_noise(x_t, t, labels, cfg_scale)
 
         loss = mse(noise, noise_pred)
 
