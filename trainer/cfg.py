@@ -9,6 +9,7 @@ from tqdm import tqdm
 from models.unet.label_conditioned import LabelConditionedUNet
 from models.diffusion.cfg import Diffusion_CFG
 from models.diffusion.base import Diffusion
+from models.sde.cfg import SDE_CFG_Params, SDE_CFG
 import utils
 
 
@@ -32,7 +33,13 @@ def create_diffusion_model(eps_theta: nn.Module, args: Namespace) -> Diffusion:
         )
 
     if args.model_type == "sde":
-        raise NotImplementedError("sde for cfg is not created yet")
+        params = SDE_CFG_Params(args.device)
+        params.eps_theta = eps_theta
+        params.beta_start = args.beta_start
+        params.beta_end = args.beta_end
+        params.input_size = (args.in_channels, args.img_size, args.img_size)
+
+        return SDE_CFG(params)
 
 
 def load_last_checkpoint(args: Namespace):
