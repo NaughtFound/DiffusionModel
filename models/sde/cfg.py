@@ -81,7 +81,7 @@ class SDE_CFG_Reverse(SDE_DDPM_Reverse):
 
 class SDE_CFG(SDE_DDPM):
     def __init__(self, args: SDE_CFG_Params):
-        super().__init__()
+        super().__init__(args)
 
         self.args = args
 
