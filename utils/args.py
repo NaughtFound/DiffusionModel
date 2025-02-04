@@ -19,8 +19,8 @@ class KWargs(object):
 
         return kwargs
 
-    def insert(self, func: Callable, **kwargs):
-        key = func.__qualname__
+    def insert(self, f: Callable, **kwargs):
+        key = f.__qualname__
 
         setattr(self, key, kwargs)
 
@@ -28,7 +28,7 @@ class KWargs(object):
 def with_kwargs(func: Callable):
     key = func.__qualname__
 
-    @wraps
+    @wraps(func)
     def wrapper(*args, **kwargs):
         additional_kwargs = KWargs().pop(key)
 
