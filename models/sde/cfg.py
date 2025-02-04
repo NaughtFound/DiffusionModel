@@ -1,9 +1,8 @@
 import torch
 import torchsde
-from models.diffusion.base import Diffusion
 from utils import fill_tail_dims
 from utils.args import with_kwargs, KWargs
-from .ddpm import SDE_DDPM_Params, SDE_DDPM_Forward, SDE_DDPM_Reverse
+from .ddpm import SDE_DDPM, SDE_DDPM_Params, SDE_DDPM_Forward, SDE_DDPM_Reverse
 
 
 class SDE_CFG_Params(SDE_DDPM_Params):
@@ -80,7 +79,7 @@ class SDE_CFG_Reverse(SDE_DDPM_Reverse):
         return x_0
 
 
-class SDE_CFG(Diffusion):
+class SDE_CFG(SDE_DDPM):
     def __init__(self, args: SDE_CFG_Params):
         super().__init__()
 
