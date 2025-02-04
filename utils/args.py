@@ -11,10 +11,18 @@ class KWargs(object):
         return cls.instance
 
     def pop(self, key: str) -> dict:
-        pass
+        kwargs = {}
+
+        if hasattr(self, key):
+            kwargs = getattr(self, key)
+            delattr(self, key)
+
+        return kwargs
 
     def insert(self, func: Callable, **kwargs):
         key = func.__qualname__
+
+        setattr(self, key, kwargs)
 
 
 def with_kwargs(func: Callable):

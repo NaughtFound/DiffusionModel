@@ -2,7 +2,7 @@ import torch
 import torchsde
 from models.diffusion.base import Diffusion
 from utils import fill_tail_dims
-from utils.decorator import with_kwargs, KWargs
+from utils.args import with_kwargs, KWargs
 from .ddpm import SDE_DDPM_Params, SDE_DDPM_Forward, SDE_DDPM_Reverse
 
 
