@@ -107,7 +107,7 @@ def train(args: Namespace):
             diffusion.eval()
             labels = torch.arange(args.num_classes).long().to(device)
             sampled_images = diffusion.sample(
-                n=images.shape[0],
+                n=args.num_classes,
                 labels=labels,
                 cfg_scale=args.cfg_scale,
             )
