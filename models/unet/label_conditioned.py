@@ -4,7 +4,7 @@ from torch import nn
 from .base import UNet
 
 
-class ConditionalUNet(UNet):
+class LabelConditionedUNet(UNet):
     def __init__(
         self,
         num_classes: int,
@@ -32,11 +32,11 @@ class ConditionalUNet(UNet):
         self,
         x: torch.Tensor,
         t: torch.Tensor,
-        y: torch.Tensor = None,
+        labels: torch.Tensor = None,
     ) -> torch.Tensor:
         t = self.time_encoding(t)
 
-        if y is not None:
-            t += self.label_emb(y)
+        if labels is not None:
+            t += self.label_emb(labels)
 
         return self.encode_decode(x, t)

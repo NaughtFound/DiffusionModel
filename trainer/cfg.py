@@ -6,7 +6,7 @@ from torch.utils.tensorboard.writer import SummaryWriter
 from argparse import Namespace
 import logging
 from tqdm import tqdm
-from models.unet.conditional import ConditionalUNet
+from models.unet.label_conditioned import LabelConditionedUNet
 from models.diffusion.cfg import Diffusion_CFG
 from models.diffusion.base import Diffusion
 import utils
@@ -36,7 +36,7 @@ def create_diffusion_model(eps_theta: nn.Module, args: Namespace) -> Diffusion:
 
 
 def load_last_checkpoint(args: Namespace):
-    eps_theta = ConditionalUNet(
+    eps_theta = LabelConditionedUNet(
         in_channels=args.in_channels,
         out_channels=args.in_channels,
         time_dim=args.time_dim,
