@@ -37,6 +37,7 @@ class LabelConditionedUNet(UNet):
         t = self.time_encoding(t)
 
         if labels is not None:
-            t += self.label_emb(labels)
+            t_batch = t.expand(len(x), -1)
+            t = t_batch + self.label_emb(labels)
 
         return self.encode_decode(x, t)

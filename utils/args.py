@@ -10,12 +10,11 @@ class KWargs(object):
             cls.instance = super(KWargs, cls).__new__(cls)
         return cls.instance
 
-    def pop(self, key: str) -> dict:
+    def get(self, key: str) -> dict:
         kwargs = {}
 
         if hasattr(self, key):
             kwargs = getattr(self, key)
-            delattr(self, key)
 
         return kwargs
 
@@ -30,7 +29,7 @@ def with_kwargs(func: Callable):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        additional_kwargs = KWargs().pop(key)
+        additional_kwargs = KWargs().get(key)
 
         return func(*args, **kwargs, **additional_kwargs)
 
