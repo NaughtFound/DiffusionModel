@@ -2,6 +2,7 @@ import torch
 import torchsde
 from models.diffusion.base import Diffusion
 from utils import fill_tail_dims
+from utils.decorator import with_kwargs, KWargs
 from .ddpm import SDE_DDPM_Params, SDE_DDPM_Forward, SDE_DDPM_Reverse
 
 
@@ -39,6 +40,7 @@ class SDE_CFG_Reverse(SDE_DDPM_Reverse):
         self.forward_sde = forward_sde
         self.args = args
 
+    @with_kwargs
     def f(
         self,
         t: torch.Tensor,
@@ -67,6 +69,8 @@ class SDE_CFG_Reverse(SDE_DDPM_Reverse):
     ) -> torch.Tensor:
         t = torch.tensor([-self.args.t1, -self.args.t0], device=self.args.device)
         x_t = torch.randn(size=(n, *self.args.input_size), device=self.args.device)
+
+        KWargs().insert(self.f, labels=labels, cfg_scale=cfg_scale)
 
         x_s = torchsde.sdeint(self, x_t.flatten(1), t, dt=dt).view(len(t), *x_t.size())
 
