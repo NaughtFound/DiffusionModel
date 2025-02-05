@@ -19,13 +19,18 @@ logging.basicConfig(
 )
 
 
-def create_diffusion_model(eps_theta: nn.Module, args: Namespace) -> Diffusion:
+def create_diffusion_model(
+    eps_theta: nn.Module,
+    tau_theta: nn.Module,
+    args: Namespace,
+) -> Diffusion:
     if args.model_type == "default":
         raise NotImplementedError("default type is not implemented yet.")
 
     if args.model_type == "sde":
         params = SDE_LDM_Params(args.device)
         params.eps_theta = eps_theta
+        params.tau_theta = tau_theta
         params.beta_start = args.beta_start
         params.beta_end = args.beta_end
         params.input_size = (args.in_channels, args.img_size, args.img_size)
@@ -40,14 +45,23 @@ def load_last_checkpoint(args: Namespace):
         time_dim=args.time_dim,
     ).to(args.device)
 
-    optimizer = optim.AdamW(eps_theta.parameters(), lr=args.lr)
+    tau_theta = nn.Module().to(args.device)
+
+    params = nn.ParameterList()
+    params.extend(list(eps_theta.parameters()))
+    params.extend(list(tau_theta.parameters()))
+
+    optimizer = optim.AdamW(params, lr=args.lr)
 
     last_epoch = 0
 
     if hasattr(args, "checkpoint") and args.checkpoint is not None:
         logging.info(f"Loading checkpoint {args.checkpoint}")
         last_epoch = utils.load_state_dict(
-            eps_theta,
+            {
+                "eps_theta": eps_theta,
+                "tau_theta": tau_theta,
+            },
             optimizer,
             args.run_name,
             args.checkpoint,
@@ -55,8 +69,9 @@ def load_last_checkpoint(args: Namespace):
         )
 
         eps_theta.to(args.device)
+        tau_theta.to(args.device)
 
-    return eps_theta, optimizer, last_epoch
+    return eps_theta, tau_theta, optimizer, last_epoch
 
 
 def train(args: Namespace):
@@ -66,9 +81,9 @@ def train(args: Namespace):
     dataset = utils.create_dataset(args)
     dataloader = utils.create_dataloader(dataset, args)
 
-    eps_theta, optimizer, last_epoch = load_last_checkpoint(args)
+    eps_theta, tau_theta, optimizer, last_epoch = load_last_checkpoint(args)
 
-    diffusion = create_diffusion_model(eps_theta, args)
+    diffusion = create_diffusion_model(eps_theta, tau_theta, args)
     diffusion.train()
 
     logger = SummaryWriter(os.path.join("runs", args.run_name))
@@ -102,13 +117,18 @@ def train(args: Namespace):
         if (epoch + 1) % args.save_freq == 0:
             logging.info(f"Sampling for epoch {epoch+1}")
             diffusion.eval()
-            sampled_images = None
-            raise NotImplementedError("sampling not implemented yet.")
+            sampled_images = diffusion.sample(
+                n=args.batch_size,
+                y=None,
+            )
             diffusion.train()
             logging.info(f"Saving results for epoch {epoch+1}")
             utils.save_images(sampled_images, args.run_name, f"{epoch+1}.jpg")
             utils.save_state_dict(
-                eps_theta,
+                {
+                    "eps_theta": eps_theta,
+                    "tau_theta": tau_theta,
+                },
                 optimizer,
                 epoch,
                 args.run_name,
