@@ -9,7 +9,6 @@ class UNet(nn.Module):
         in_channels: int = 3,
         mid_channels: int = 64,
         out_channels: int = 3,
-        time_dim: int = 256,
         emb_dim: int = 256,
         features: list[int] = [128, 256],
         neck_features: list[int] = [512],
@@ -21,7 +20,6 @@ class UNet(nn.Module):
         self.out_channels = out_channels
         self.features = features
         self.neck_features = neck_features
-        self.time_dim = time_dim
         self.emb_dim = emb_dim
 
         self.inc = m.DoubleConv(in_channels, mid_channels)
@@ -83,7 +81,7 @@ class UNet(nn.Module):
 
     def _time_encoding(self, t: torch.Tensor) -> torch.Tensor:
         t = t.unsqueeze(-1).to(torch.float)
-        t = self.pos_encoding(t, self.time_dim)
+        t = self.pos_encoding(t, self.emb_dim)
 
         return t
 

@@ -43,7 +43,6 @@ def load_last_checkpoint(args: Namespace):
     eps_theta = UNet(
         in_channels=args.in_channels,
         out_channels=args.in_channels,
-        time_dim=args.time_dim,
     ).to(args.device)
 
     optimizer = optim.AdamW(eps_theta.parameters(), lr=args.lr)
@@ -129,7 +128,6 @@ def create_default_args():
     args.T = 1000
     args.beta_start = 1e-4
     args.beta_end = 2e-2
-    args.time_dim = 256
     args.device = "cuda"
     args.lr = 3e-4
     args.checkpoint = None
@@ -155,7 +153,6 @@ def lunch():
     parser.add_argument("--T", type=int, default=d_args.T)
     parser.add_argument("--beta_start", type=float, default=d_args.beta_start)
     parser.add_argument("--beta_end", type=float, default=d_args.beta_end)
-    parser.add_argument("--time_dim", type=int, default=d_args.time_dim)
     parser.add_argument("--dataset_path", type=str, required=True)
     parser.add_argument("--device", type=str, default=d_args.device)
     parser.add_argument("--lr", type=float, default=d_args.lr)
