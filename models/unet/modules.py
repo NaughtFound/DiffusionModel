@@ -46,11 +46,8 @@ class DoubleConv(nn.Module):
             return self.conv(x)
 
 
-class SelfAttention(nn.Module):
-    def __init__(
-        self,
-        channels: int,
-    ) -> None:
+class CrossAttention(nn.Module):
+    def __init__(self, channels: int) -> None:
         super().__init__()
 
         self.channels = channels
@@ -70,16 +67,18 @@ class SelfAttention(nn.Module):
             nn.Linear(in_features=channels, out_features=channels),
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        batch_size = x.size(0)
-        size = int(math.sqrt(x.numel() // self.channels // batch_size))
+    def forward(self, q: torch.Tensor, kv: torch.Tensor) -> torch.Tensor:
+        batch_size = q.size(0)
+        size = int(math.sqrt(q.numel() // self.channels // batch_size))
 
-        x = x.view(-1, self.channels, size**2).swapaxes(1, 2)
+        q = q.view(-1, self.channels, size**2).swapaxes(1, 2)
+        kv = kv.view(-1, self.channels, size**2).swapaxes(1, 2)
 
-        x_ln = self.ln(x)
+        q_ln = self.ln(q)
+        kv_ln = self.ln(kv)
 
-        attention_value, _ = self.mha(x_ln, x_ln, x_ln)
-        attention_value = attention_value + x
+        attention_value, _ = self.mha(q_ln, kv_ln, kv_ln)
+        attention_value = attention_value + q
         attention_value = self.ff(attention_value) + attention_value
 
         return attention_value.swapaxes(2, 1).view(
@@ -88,6 +87,11 @@ class SelfAttention(nn.Module):
             size,
             size,
         )
+
+
+class SelfAttention(CrossAttention):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return super().forward(x, x)
 
 
 class Up(nn.Module):
