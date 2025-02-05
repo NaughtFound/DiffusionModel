@@ -6,20 +6,20 @@ from . import modules as m
 class ConditionalUNet(UNet):
     def _build_attention(self):
         for f in self.features:
-            self.down_attention.append(m.CrossAttention(f))
+            self.down_attention.append(m.CrossAttention(f, self.emb_dim))
 
-        self.down_attention.append(m.CrossAttention(self.features[-1]))
+        self.down_attention.append(m.CrossAttention(self.features[-1], self.emb_dim))
 
         for f in reversed(self.features):
-            self.up_attention.append(m.CrossAttention(f // 2))
+            self.up_attention.append(m.CrossAttention(f // 2, self.emb_dim))
 
-        self.up_attention.append(m.CrossAttention(self.mid_channels))
+        self.up_attention.append(m.CrossAttention(self.mid_channels, self.emb_dim))
 
     def _encode_decode(
         self,
         x: torch.Tensor,
         t: torch.Tensor,
-        y: torch.Tensor = None,
+        y: torch.Tensor,
     ) -> torch.Tensor:
         x = self.inc(x)
         x_l = [x]
@@ -44,7 +44,7 @@ class ConditionalUNet(UNet):
         self,
         x: torch.Tensor,
         t: torch.Tensor,
-        y: torch.Tensor = None,
+        y: torch.Tensor,
     ) -> torch.Tensor:
         t = self._time_encoding(t)
 

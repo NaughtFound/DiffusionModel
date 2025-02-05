@@ -47,18 +47,22 @@ class DoubleConv(nn.Module):
 
 
 class CrossAttention(nn.Module):
-    def __init__(self, channels: int) -> None:
+    def __init__(self, channels: int, emb_dim: int) -> None:
         super().__init__()
 
         self.channels = channels
+        self.emb_dim = emb_dim
 
         self.mha = nn.MultiheadAttention(
             embed_dim=channels,
+            kdim=emb_dim,
+            vdim=emb_dim,
             num_heads=4,
             batch_first=True,
         )
 
-        self.ln = nn.LayerNorm(normalized_shape=[channels])
+        self.ln_q = nn.LayerNorm(normalized_shape=[channels])
+        self.ln_kv = nn.LayerNorm(normalized_shape=[emb_dim])
 
         self.ff = nn.Sequential(
             nn.LayerNorm(normalized_shape=[channels]),
@@ -72,14 +76,10 @@ class CrossAttention(nn.Module):
         size = int(math.sqrt(q.numel() // self.channels // batch_size))
 
         q = q.view(-1, self.channels, size**2).swapaxes(1, 2)
-
-        if kv is None:
-            kv = q
-
         kv = kv.view(-1, self.channels, size**2).swapaxes(1, 2)
 
-        q_ln = self.ln(q)
-        kv_ln = self.ln(kv)
+        q_ln = self.ln_q(q)
+        kv_ln = self.ln_kv(kv)
 
         attention_value, _ = self.mha(q_ln, kv_ln, kv_ln)
         attention_value = attention_value + q
@@ -94,6 +94,9 @@ class CrossAttention(nn.Module):
 
 
 class SelfAttention(CrossAttention):
+    def __init__(self, channels):
+        super().__init__(channels, channels)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return super().forward(x, x)
 

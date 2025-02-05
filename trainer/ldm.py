@@ -102,9 +102,6 @@ def train(args: Namespace):
             labels = batch[1].to(device)
             t = diffusion.t(images.shape[0])
 
-            if np.random.random() < args.alpha:
-                labels = None
-
             loss = diffusion.calc_loss(images, t, labels)
 
             optimizer.zero_grad()
