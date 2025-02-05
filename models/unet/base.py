@@ -17,7 +17,10 @@ class UNet(nn.Module):
         super().__init__()
 
         self.in_channels = in_channels
+        self.mid_channels = mid_channels
         self.out_channels = out_channels
+        self.features = features
+        self.neck_features = neck_features
         self.time_dim = time_dim
         self.emb_dim = emb_dim
 
@@ -30,29 +33,43 @@ class UNet(nn.Module):
         self.up = nn.ModuleList()
         self.up_attention = nn.ModuleList()
 
-        f_before = mid_channels
-        for f in features:
-            self.down.append(m.Down(f_before, f, emb_dim))
-            self.down_attention.append(m.SelfAttention(f))
+        self._build_down()
+        self._build_up()
+        self._build_attention()
+        self._build_neck()
+
+    def _build_down(self):
+        f_before = self.mid_channels
+        for f in self.features:
+            self.down.append(m.Down(f_before, f, self.emb_dim))
             f_before = f
 
-        self.down.append(m.Down(features[-1], features[-1], emb_dim))
-        self.down_attention.append(m.SelfAttention(features[-1]))
+        self.down.append(m.Down(self.features[-1], self.features[-1], self.emb_dim))
 
-        n_before = features[-1]
+    def _build_up(self):
+        for f in reversed(self.features):
+            self.up.append(m.Up(f * 2, f // 2, self.emb_dim))
 
-        for n in neck_features:
+        self.up.append(m.Up(f, self.mid_channels))
+
+    def _build_attention(self):
+        for f in self.features:
+            self.down_attention.append(m.SelfAttention(f))
+
+        self.down_attention.append(m.SelfAttention(self.features[-1]))
+
+        for f in reversed(self.features):
+            self.up_attention.append(m.SelfAttention(f // 2))
+
+        self.up_attention.append(m.SelfAttention(self.mid_channels))
+
+    def _build_neck(self):
+        n_before = self.features[-1]
+        for n in self.neck_features:
             self.bottle_neck.append(m.DoubleConv(n_before, n))
             n_before = n
 
-        self.bottle_neck.append(m.DoubleConv(n_before, features[-1]))
-
-        for f in reversed(features):
-            self.up.append(m.Up(f * 2, f // 2, emb_dim))
-            self.up_attention.append(m.SelfAttention(f // 2))
-
-        self.up.append(m.Up(f, mid_channels))
-        self.up_attention.append(m.SelfAttention(mid_channels))
+        self.bottle_neck.append(m.DoubleConv(n_before, self.features[-1]))
 
     def pos_encoding(self, t: torch.Tensor, channels: int) -> torch.Tensor:
         inv_freq = 1.0 / (
@@ -64,13 +81,13 @@ class UNet(nn.Module):
 
         return torch.cat([pos_enc_a, pos_enc_b], dim=-1)
 
-    def time_encoding(self, t: torch.Tensor) -> torch.Tensor:
+    def _time_encoding(self, t: torch.Tensor) -> torch.Tensor:
         t = t.unsqueeze(-1).to(torch.float)
         t = self.pos_encoding(t, self.time_dim)
 
         return t
 
-    def encode_decode(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+    def _encode_decode(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         x = self.inc(x)
         x_l = [x]
 
@@ -91,6 +108,6 @@ class UNet(nn.Module):
         return self.out(x)
 
     def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
-        t = self.time_encoding(t)
+        t = self._time_encoding(t)
 
-        return self.encode_decode(x, t)
+        return self._encode_decode(x, t)

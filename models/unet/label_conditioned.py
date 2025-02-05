@@ -34,10 +34,10 @@ class LabelConditionedUNet(UNet):
         t: torch.Tensor,
         labels: torch.Tensor = None,
     ) -> torch.Tensor:
-        t = self.time_encoding(t)
+        t = self._time_encoding(t)
 
         if labels is not None:
             t_batch = t.expand(len(x), -1)
             t = t_batch + self.label_emb(labels)
 
-        return self.encode_decode(x, t)
+        return self._encode_decode(x, t)
