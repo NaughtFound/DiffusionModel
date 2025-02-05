@@ -45,7 +45,7 @@ def load_last_checkpoint(args: Namespace):
         time_dim=args.time_dim,
     ).to(args.device)
 
-    tau_theta = nn.Module().to(args.device)
+    tau_theta = nn.Embedding(args.num_classes, args.time_dim).to(args.device)
 
     params = nn.ParameterList()
     params.extend(list(eps_theta.parameters()))
@@ -117,9 +117,10 @@ def train(args: Namespace):
         if (epoch + 1) % args.save_freq == 0:
             logging.info(f"Sampling for epoch {epoch+1}")
             diffusion.eval()
+            labels = torch.arange(args.num_classes).long().to(device)
             sampled_images = diffusion.sample(
-                n=args.batch_size,
-                y=None,
+                n=args.num_classes,
+                y=labels,
             )
             diffusion.train()
             logging.info(f"Saving results for epoch {epoch+1}")
@@ -179,6 +180,7 @@ def lunch():
     parser.add_argument("--dataset_path", type=str, required=True)
     parser.add_argument("--device", type=str, default=d_args.device)
     parser.add_argument("--lr", type=float, default=d_args.lr)
+    parser.add_argument("--num_classes", type=int, required=True)
     parser.add_argument("--alpha", type=float, default=d_args.alpha)
     parser.add_argument("--checkpoint", type=str, default=d_args.checkpoint)
     parser.add_argument("--save_freq", type=int, default=d_args.save_freq)
