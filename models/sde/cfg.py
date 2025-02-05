@@ -73,6 +73,8 @@ class SDE_CFG_Reverse(SDE_DDPM_Reverse):
 
         x_s = torchsde.sdeint(self, x_t.flatten(1), t, dt=dt).view(len(t), *x_t.size())
 
+        KWargs().drop(self.f)
+
         x_0 = (x_s.clamp(-1, 1) + 1) / 2
         x_0 = (x_0 * 255).to(torch.uint8)
 

@@ -18,8 +18,13 @@ class KWargs(object):
 
         return kwargs
 
-    def insert(self, f: Callable, **kwargs):
-        key = f.__qualname__
+    def drop(self, func: Callable):
+        key = func.__qualname__
+        if hasattr(self, key):
+            delattr(self, key)
+
+    def insert(self, func: Callable, **kwargs):
+        key = func.__qualname__
 
         setattr(self, key, kwargs)
 
