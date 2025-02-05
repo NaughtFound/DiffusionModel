@@ -1,29 +1,44 @@
 import torch
-from torch import nn
-
 from .base import UNet
+from . import modules as m
 
 
 class ConditionalUNet(UNet):
-    def __init__(
+    def _build_attention(self):
+        for f in self.features:
+            self.down_attention.append(m.CrossAttention(f))
+
+        self.down_attention.append(m.CrossAttention(self.features[-1]))
+
+        for f in reversed(self.features):
+            self.up_attention.append(m.CrossAttention(f // 2))
+
+        self.up_attention.append(m.CrossAttention(self.mid_channels))
+
+    def _encode_decode(
         self,
-        in_channels: int = 3,
-        mid_channels: int = 64,
-        out_channels: int = 3,
-        time_dim: int = 256,
-        emb_dim: int = 256,
-        features: list[int] = [128, 256],
-        neck_features: list[int] = [512],
-    ) -> None:
-        super().__init__(
-            in_channels,
-            mid_channels,
-            out_channels,
-            time_dim,
-            emb_dim,
-            features,
-            neck_features,
-        )
+        x: torch.Tensor,
+        t: torch.Tensor,
+        y: torch.Tensor,
+    ) -> torch.Tensor:
+        x = self.inc(x)
+        x_l = [x]
+
+        for i in range(len(self.down)):
+            x_i = self.down[i](x_l[-1], t)
+            x_i = self.down_attention[i](x_i, y)
+            x_l.append(x_i)
+
+        x_l[-1] = self.bottle_neck(x_l[-1])
+
+        x = x_l[-1]
+        x_l = x_l[::-1]
+
+        for i in range(len(self.up)):
+            x = self.up[i](x, x_l[i + 1], t)
+            x = self.up_attention[i](x, y)
+
+        return self.out(x)
 
     def forward(
         self,
@@ -31,4 +46,6 @@ class ConditionalUNet(UNet):
         t: torch.Tensor,
         y: torch.Tensor = None,
     ) -> torch.Tensor:
-        raise NotImplementedError("forward method not implemented yet")
+        t = self._time_encoding(t)
+
+        return self._encode_decode(x, t, y)
