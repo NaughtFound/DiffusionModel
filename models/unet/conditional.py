@@ -19,7 +19,7 @@ class ConditionalUNet(UNet):
         self,
         x: torch.Tensor,
         t: torch.Tensor,
-        y: torch.Tensor,
+        y: torch.Tensor = None,
     ) -> torch.Tensor:
         x = self.inc(x)
         x_l = [x]

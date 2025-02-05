@@ -72,6 +72,10 @@ class CrossAttention(nn.Module):
         size = int(math.sqrt(q.numel() // self.channels // batch_size))
 
         q = q.view(-1, self.channels, size**2).swapaxes(1, 2)
+
+        if kv is None:
+            kv = q
+
         kv = kv.view(-1, self.channels, size**2).swapaxes(1, 2)
 
         q_ln = self.ln(q)
