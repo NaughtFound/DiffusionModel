@@ -75,8 +75,8 @@ class CrossAttention(nn.Module):
         batch_size = q.size(0)
         size = int(math.sqrt(q.numel() // self.channels // batch_size))
 
-        q = q.view(-1, self.channels, size**2).swapaxes(1, 2)
-        kv = kv.view(-1, self.channels, size**2).swapaxes(1, 2)
+        q = q.view(batch_size, self.channels, -1).swapaxes(1, 2)
+        kv = kv.view(batch_size, self.emb_dim, -1).swapaxes(1, 2)
 
         q_ln = self.ln_q(q)
         kv_ln = self.ln_kv(kv)
