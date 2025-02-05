@@ -7,6 +7,7 @@ from PIL import Image
 from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader, Dataset
 from argparse import Namespace
+from typing import Union
 
 
 def plot_images(images: torch.Tensor, **kwargs):
@@ -27,17 +28,22 @@ def save_images(images: torch.Tensor, run_name: str, file_name: str, **kwargs):
 
 
 def save_state_dict(
-    model: nn.Module,
+    model: Union[nn.Module, dict[str, nn.Module]],
     optimizer: optim.Optimizer,
     epoch: int,
     run_name: str,
     file_name: str,
 ):
     state_dict = {
-        "model": model.state_dict(),
         "optimizer": optimizer.state_dict(),
         "epoch": epoch,
     }
+
+    if isinstance(model, nn.Module):
+        state_dict["model"] = model.state_dict()
+    else:
+        for model_name in model:
+            state_dict[model_name] = model[model_name].state_dict()
 
     torch.save(
         state_dict,
@@ -46,7 +52,7 @@ def save_state_dict(
 
 
 def load_state_dict(
-    model: nn.Module,
+    model: Union[nn.Module, dict[str, nn.Module]],
     optimizer: optim.Optimizer,
     run_name: str,
     file_name: str,
@@ -55,7 +61,13 @@ def load_state_dict(
     path = os.path.join("weights", run_name, file_name)
     if os.path.exists(path):
         state_dict = torch.load(path, weights_only=True, map_location=device)
-        model.load_state_dict(state_dict.get("model"))
+
+        if isinstance(model, nn.Module):
+            model.load_state_dict(state_dict.get("model"))
+        else:
+            for model_name in model:
+                model[model_name].load_state_dict(state_dict.get(model_name))
+
         optimizer.load_state_dict(state_dict.get("optimizer"))
         return state_dict.get("epoch")
 
