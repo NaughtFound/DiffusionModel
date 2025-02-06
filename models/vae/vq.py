@@ -176,10 +176,7 @@ class VAE_VQ(VAE):
 
         x_hat = self.decode(z_q)
 
-        x_0 = (x_hat.clamp(-1, 1) + 1) / 2
-        x_0 = (x_0 * 255).to(torch.uint8)
-
-        return x_0
+        return x_hat
 
     def calc_loss(self, x: torch.Tensor, var: torch.Tensor):
         z_e = self.encode(x)

@@ -66,10 +66,7 @@ class Diffusion_CFG(Diffusion_DDPM):
 
             x_t = self.mu_theta(x_t, t - 1, eps_theta) + sigma_t * z
 
-        x_0 = (x_t.clamp(-1, 1) + 1) / 2
-        x_0 = (x_0 * 255).to(torch.uint8)
-
-        return x_0
+        return x_t
 
     def calc_loss(
         self,

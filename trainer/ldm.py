@@ -34,15 +34,15 @@ def create_diffusion_model(
         params.tau_theta = tau_theta
         params.beta_start = args.beta_start
         params.beta_end = args.beta_end
-        params.input_size = (args.in_channels, args.img_size, args.img_size)
+        params.input_size = (args.z_channels, args.img_size, args.img_size)
 
         return SDE_LDM(params)
 
 
 def load_last_checkpoint(args: Namespace):
     eps_theta = ConditionalUNet(
-        in_channels=args.in_channels,
-        out_channels=args.in_channels,
+        in_channels=args.z_channels,
+        out_channels=args.z_channels,
     ).to(args.device)
 
     tau_theta = nn.Embedding(args.num_classes, eps_theta.emb_dim).to(args.device)
@@ -171,6 +171,7 @@ def create_default_args():
     args.lr = 3e-4
     args.alpha = 0.1
     args.checkpoint = None
+    args.vae_checkpoint = None
     args.save_freq = 5
 
     return args
@@ -199,6 +200,7 @@ def lunch():
     parser.add_argument("--num_classes", type=int, required=True)
     parser.add_argument("--alpha", type=float, default=d_args.alpha)
     parser.add_argument("--checkpoint", type=str, default=d_args.checkpoint)
+    parser.add_argument("--vae_checkpoint", type=str, default=d_args.vae_checkpoint)
     parser.add_argument("--save_freq", type=int, default=d_args.save_freq)
 
     args = parser.parse_args()

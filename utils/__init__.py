@@ -19,7 +19,16 @@ def plot_images(images: torch.Tensor, **kwargs):
     plt.show()
 
 
-def save_images(images: torch.Tensor, run_name: str, file_name: str, **kwargs):
+def to_image(x: torch.Tensor) -> torch.Tensor:
+    x_0 = (x.clamp(-1, 1) + 1) / 2
+    x_0 = (x_0 * 255).to(torch.uint8)
+
+    return x_0
+
+
+def save_images(x: torch.Tensor, run_name: str, file_name: str, **kwargs):
+    images = to_image(x)
+
     grid = torchvision.utils.make_grid(images, **kwargs)
     grid_numpy = grid.permute(1, 2, 0).cpu().numpy()
 

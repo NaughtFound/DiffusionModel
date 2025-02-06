@@ -101,10 +101,7 @@ class Diffusion_DDPM(Diffusion):
 
             x_t = self.mu_theta(x_t, t, eps_theta) + sigma_t * z
 
-        x_0 = (x_t.clamp(-1, 1) + 1) / 2
-        x_0 = (x_0 * 255).to(torch.uint8)
-
-        return x_0
+        return x_t
 
     def calc_loss(self, x_0: torch.Tensor, t: torch.Tensor):
         mse = nn.MSELoss()

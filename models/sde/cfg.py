@@ -75,10 +75,7 @@ class SDE_CFG_Reverse(SDE_DDPM_Reverse):
 
         KWargs().drop(self.f)
 
-        x_0 = (x_s.clamp(-1, 1) + 1) / 2
-        x_0 = (x_0 * 255).to(torch.uint8)
-
-        return x_0
+        return x_s
 
 
 class SDE_CFG(SDE_DDPM):
