@@ -1,6 +1,5 @@
 import os
 import torch
-import numpy as np
 from torch import optim, nn
 from torch.utils.tensorboard.writer import SummaryWriter
 from argparse import Namespace
@@ -8,8 +7,10 @@ import logging
 from tqdm import tqdm
 from models.unet.conditional import ConditionalUNet
 from models.diffusion.base import Diffusion
+from models.vae.base import VAE
 from models.sde.ldm import SDE_LDM_Params, SDE_LDM
 import utils
+from . import vae
 
 
 logging.basicConfig(
@@ -73,6 +74,18 @@ def load_last_checkpoint(args: Namespace):
     return eps_theta, tau_theta, optimizer, last_epoch
 
 
+def create_vae_model(args: Namespace) -> VAE:
+    vae_args = vae.create_default_args()
+    vae_args.checkpoint = args.vae_checkpoint
+    vae_args.device = args.device
+    vae_args.in_channels = args.in_channels
+    vae_args.img_size = args.img_size
+
+    vae_model = vae.load_last_checkpoint(vae_args)[0]
+
+    return vae_model
+
+
 def train(args: Namespace):
     utils.setup_logging(args.run_name)
     device = args.device
@@ -84,6 +97,9 @@ def train(args: Namespace):
 
     diffusion = create_diffusion_model(eps_theta, tau_theta, args)
     diffusion.train()
+
+    vae_model = create_vae_model(args)
+    vae_model.eval()
 
     logger = SummaryWriter(os.path.join("runs", args.run_name))
 
@@ -100,9 +116,12 @@ def train(args: Namespace):
         ):
             images = batch[0].to(device)
             labels = batch[1].to(device)
-            t = diffusion.t(images.shape[0])
 
-            loss = diffusion.calc_loss(images, t, labels)
+            encoded_images = vae_model.encode(images)
+
+            t = diffusion.t(encoded_images.shape[0])
+
+            loss = diffusion.calc_loss(encoded_images, t, labels)
 
             optimizer.zero_grad()
             loss.backward()
@@ -119,8 +138,11 @@ def train(args: Namespace):
                 y=labels,
             )
             diffusion.train()
+
+            decoded_images = vae_model.decode(sampled_images)
+
             logging.info(f"Saving results for epoch {epoch+1}")
-            utils.save_images(sampled_images, args.run_name, f"{epoch+1}.jpg")
+            utils.save_images(decoded_images, args.run_name, f"{epoch+1}.jpg")
             utils.save_state_dict(
                 {
                     "eps_theta": eps_theta,
