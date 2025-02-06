@@ -165,18 +165,21 @@ class VAE_VQ(VAE):
         return x_hat
 
     def sample(self, n: int):
-        z = torch.randn(
-            n,
-            self.args.embedding_dim,
-            self.args.img_size,
-            self.args.img_size,
-        )
-        vq_dict = self.quantizer(z)
+        raise NotImplementedError("sampling is not implemented for vq.")
 
-        z_q = vq_dict.get("z_q", torch.zeros_like(z))
+    @torch.no_grad()
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        z_e = self.encode(x)
+        vq_dict = self.quantizer(z_e)
+
+        z_q = vq_dict.get("z_q", torch.zeros_like(z_e))
+
         x_hat = self.decode(z_q)
 
-        return x_hat
+        x_0 = (x_hat.clamp(-1, 1) + 1) / 2
+        x_0 = (x_0 * 255).to(torch.uint8)
+
+        return x_0
 
     def calc_loss(self, x: torch.Tensor, var: torch.Tensor):
         z_e = self.encode(x)

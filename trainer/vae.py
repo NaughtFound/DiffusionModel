@@ -106,7 +106,7 @@ def train(args: Namespace):
         if (epoch + 1) % args.save_freq == 0:
             logging.info(f"Sampling for epoch {epoch+1}")
             vae.eval()
-            sampled_images = vae.sample(n=images.shape[0])
+            sampled_images = vae.forward(images)
             vae.train()
             logging.info(f"Saving results for epoch {epoch+1}")
             utils.save_images(sampled_images, args.run_name, f"{epoch+1}.jpg")
