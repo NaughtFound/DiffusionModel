@@ -53,7 +53,13 @@ class VectorQuantizer(nn.Module):
 
         z_q = z_q.permute(0, 3, 1, 2).contiguous()
 
-        return loss, z_q, perplexity, min_encodings, min_encoding_indices
+        return {
+            "loss": loss,
+            "z_q": z_q,
+            "perplexity": perplexity,
+            "encodings": min_encodings,
+            "encodings_idx": min_encoding_indices,
+        }
 
 
 class ResidualLayer(nn.Module):
