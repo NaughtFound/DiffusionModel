@@ -15,5 +15,9 @@ class VAE(nn.Module, ABC):
         pass
 
     @abstractmethod
+    def sample(self, *args: Any, **kwargs: Any) -> torch.Tensor:
+        pass
+
+    @abstractmethod
     def calc_loss(self, *args: Any, **kwargs: Any) -> torch.Tensor:
         pass

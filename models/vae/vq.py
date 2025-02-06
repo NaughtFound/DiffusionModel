@@ -6,6 +6,7 @@ from . import modules as m
 
 class VAE_VQ_Params:
     in_channels: int
+    img_size: int
     hidden_dim: int
     embedding_dim: int
     n_embeddings: int
@@ -17,6 +18,7 @@ class VAE_VQ_Params:
         self.device = device
 
         self.in_channels = 3
+        self.img_size = 64
         self.hidden_dim = 128
         self.embedding_dim = 64
         self.n_embeddings = 512
@@ -162,11 +164,25 @@ class VAE_VQ(VAE):
 
         return x_hat
 
+    def sample(self, n: int):
+        z = torch.randn(
+            n,
+            self.args.embedding_dim,
+            self.args.img_size,
+            self.args.img_size,
+        )
+        vq_dict = self.quantizer(z)
+
+        z_q = vq_dict.get("z_q", torch.zeros_like(z))
+        x_hat = self.decode(z_q)
+
+        return x_hat
+
     def calc_loss(self, x: torch.Tensor, var: torch.Tensor):
         z_e = self.encode(x)
         vq_dict = self.quantizer(z_e)
 
-        z_q = vq_dict.get("z_q", torch.zeros_like(x))
+        z_q = vq_dict.get("z_q", torch.zeros_like(z_e))
 
         x_hat = self.decode(z_q)
 
