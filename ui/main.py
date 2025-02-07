@@ -116,12 +116,19 @@ def inference_tab(config: DiffusionConfigs):
         """
         )
 
-        if st.button("Generate Image"):
-            x = diffusion.sample(n=1)
-            image = utils.to_image(x).squeeze().cpu().numpy()
-            pil_image = Image.fromarray(image)
+        n = st.number_input("Number of Images", step=1, value=1)
 
-            st.image(pil_image)
+        if st.button("Generate Image"):
+            x = diffusion.sample(n=n)
+            images = utils.to_image(x).squeeze().cpu().numpy()
+
+            cols = st.columns(4)
+
+            for i in range(n):
+                image = images[i]
+                pil_image = Image.fromarray(image)
+
+                cols[i % 4].image(pil_image)
 
     if config.model_name == "cfg":
         st.markdown(
@@ -131,17 +138,23 @@ def inference_tab(config: DiffusionConfigs):
         """
         )
 
+        n = st.number_input("Number of Images", step=1, value=1)
         label = st.selectbox("Label", options=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
         cfg_scale = st.slider("CFG Scale", min_value=0.0, max_value=1.0, value=0.5)
 
         labels = torch.Tensor([label]).long().to(config.device)
 
         if st.button("Generate Image"):
-            x = diffusion.sample(n=1, labels=labels, cfg_scale=cfg_scale)
-            image = utils.to_image(x).squeeze().cpu().numpy()
-            pil_image = Image.fromarray(image)
+            x = diffusion.sample(n=n, labels=labels, cfg_scale=cfg_scale)
+            images = utils.to_image(x).squeeze().cpu().numpy()
 
-            st.image(pil_image)
+            cols = st.columns(4)
+
+            for i in range(n):
+                image = images[i]
+                pil_image = Image.fromarray(image)
+
+                cols[i % 4].image(pil_image)
 
 
 def main():
