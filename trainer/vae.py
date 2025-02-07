@@ -45,6 +45,7 @@ def load_last_checkpoint(args: Namespace):
         last_epoch = utils.load_state_dict(
             vae,
             optimizer,
+            args.prefix,
             args.run_name,
             args.checkpoint,
             args.device,
@@ -68,7 +69,7 @@ def calc_var(dataloader: DataLoader) -> torch.Tensor:
 
 
 def train(args: Namespace):
-    utils.setup_logging(args.run_name)
+    utils.setup_logging(args.run_name, args.prefix)
     device = args.device
 
     dataset = utils.create_dataset(args)
@@ -78,7 +79,7 @@ def train(args: Namespace):
 
     vae.train()
 
-    logger = SummaryWriter(os.path.join("runs", args.run_name))
+    logger = SummaryWriter(os.path.join(args.prefix, "runs", args.run_name))
 
     len_data = len(dataloader)
 
@@ -109,11 +110,17 @@ def train(args: Namespace):
             sampled_images = vae.forward(images)
             vae.train()
             logging.info(f"Saving results for epoch {epoch+1}")
-            utils.save_images(sampled_images, args.run_name, f"{epoch+1}.jpg")
+            utils.save_images(
+                sampled_images,
+                args.prefix,
+                args.run_name,
+                f"{epoch+1}.jpg",
+            )
             utils.save_state_dict(
                 vae,
                 optimizer,
                 epoch,
+                args.prefix,
                 args.run_name,
                 f"ckpt-{epoch+1}.pt",
             )
@@ -121,6 +128,7 @@ def train(args: Namespace):
 
 def create_default_args():
     args = Namespace()
+    args.prefix = "."
     args.run_name = "VAE-VQ"
     args.model_type = "vq"
     args.epochs = 500
@@ -149,6 +157,7 @@ def lunch():
 
     d_args = create_default_args()
 
+    parser.add_argument("--prefix", type=str, default=d_args.prefix)
     parser.add_argument("--run_name", type=str, default=d_args.run_name)
     parser.add_argument("--model_type", type=str, default=d_args.model_type)
     parser.add_argument("--epochs", type=int, default=d_args.epochs)

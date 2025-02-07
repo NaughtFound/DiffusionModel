@@ -26,20 +26,27 @@ def to_image(x: torch.Tensor) -> torch.Tensor:
     return x_0
 
 
-def save_images(x: torch.Tensor, run_name: str, file_name: str, **kwargs):
+def save_images(
+    x: torch.Tensor,
+    prefix: str,
+    run_name: str,
+    file_name: str,
+    **kwargs,
+):
     images = to_image(x)
 
     grid = torchvision.utils.make_grid(images, **kwargs)
     grid_numpy = grid.permute(1, 2, 0).cpu().numpy()
 
     image = Image.fromarray(grid_numpy)
-    image.save(os.path.join("results", run_name, file_name))
+    image.save(os.path.join(prefix, "results", run_name, file_name))
 
 
 def save_state_dict(
     model: Union[nn.Module, dict[str, nn.Module]],
     optimizer: optim.Optimizer,
     epoch: int,
+    prefix: str,
     run_name: str,
     file_name: str,
 ):
@@ -56,18 +63,19 @@ def save_state_dict(
 
     torch.save(
         state_dict,
-        os.path.join("weights", run_name, file_name),
+        os.path.join(prefix, "weights", run_name, file_name),
     )
 
 
 def load_state_dict(
     model: Union[nn.Module, dict[str, nn.Module]],
     optimizer: optim.Optimizer,
+    prefix: str,
     run_name: str,
     file_name: str,
     device: torch.device,
 ) -> int:
-    path = os.path.join("weights", run_name, file_name)
+    path = os.path.join(prefix, "weights", run_name, file_name)
     if os.path.exists(path):
         state_dict = torch.load(path, weights_only=True, map_location=device)
 
@@ -109,11 +117,11 @@ def create_dataloader(dataset: Dataset, args: Namespace) -> DataLoader:
     return dataloader
 
 
-def setup_logging(run_name: str):
-    os.makedirs("weights", exist_ok=True)
-    os.makedirs("results", exist_ok=True)
-    os.makedirs(os.path.join("weights", run_name), exist_ok=True)
-    os.makedirs(os.path.join("results", run_name), exist_ok=True)
+def setup_logging(run_name: str, prefix: str = "."):
+    os.makedirs(os.path.join(prefix, "weights"), exist_ok=True)
+    os.makedirs(os.path.join(prefix, "results"), exist_ok=True)
+    os.makedirs(os.path.join(prefix, "weights", run_name), exist_ok=True)
+    os.makedirs(os.path.join(prefix, "results", run_name), exist_ok=True)
 
 
 def fill_tail_dims(x: torch.Tensor, x_like: torch.Tensor):

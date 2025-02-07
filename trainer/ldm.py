@@ -63,6 +63,7 @@ def load_last_checkpoint(args: Namespace):
                 "tau_theta": tau_theta,
             },
             optimizer,
+            args.prefix,
             args.run_name,
             args.checkpoint,
             args.device,
@@ -87,7 +88,7 @@ def create_vae_model(args: Namespace) -> VAE:
 
 
 def train(args: Namespace):
-    utils.setup_logging(args.run_name)
+    utils.setup_logging(args.run_name, args.prefix)
     device = args.device
 
     dataset = utils.create_dataset(args)
@@ -101,7 +102,7 @@ def train(args: Namespace):
     vae_model = create_vae_model(args)
     vae_model.eval()
 
-    logger = SummaryWriter(os.path.join("runs", args.run_name))
+    logger = SummaryWriter(os.path.join(args.prefix, "runs", args.run_name))
 
     len_data = len(dataloader)
 
@@ -142,7 +143,12 @@ def train(args: Namespace):
             decoded_images = vae_model.decode(sampled_images)
 
             logging.info(f"Saving results for epoch {epoch+1}")
-            utils.save_images(decoded_images, args.run_name, f"{epoch+1}.jpg")
+            utils.save_images(
+                decoded_images,
+                args.prefix,
+                args.run_name,
+                f"{epoch+1}.jpg",
+            )
             utils.save_state_dict(
                 {
                     "eps_theta": eps_theta,
@@ -150,6 +156,7 @@ def train(args: Namespace):
                 },
                 optimizer,
                 epoch,
+                args.prefix,
                 args.run_name,
                 f"ckpt-{epoch+1}.pt",
             )
@@ -157,6 +164,7 @@ def train(args: Namespace):
 
 def create_default_args():
     args = Namespace()
+    args.prefix = "."
     args.run_name = "LDM"
     args.model_type = "sde"
     args.epochs = 500
@@ -185,6 +193,7 @@ def lunch():
 
     d_args = create_default_args()
 
+    parser.add_argument("--prefix", type=str, default=d_args.prefix)
     parser.add_argument("--run_name", type=str, default=d_args.run_name)
     parser.add_argument("--model_type", type=str, default=d_args.model_type)
     parser.add_argument("--epochs", type=int, default=d_args.epochs)
