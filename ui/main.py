@@ -122,7 +122,7 @@ def inference_tab(config: DiffusionConfigs):
         """
         )
 
-        n = st.number_input("Number of Images", step=1, value=1)
+        n = st.number_input("Number of Images", step=1, value=1, min_value=1)
 
         if st.button("Generate Image"):
             images = config.sample(n=n)
@@ -146,7 +146,7 @@ def inference_tab(config: DiffusionConfigs):
         """
         )
 
-        n = st.number_input("Number of Images", step=1, value=1)
+        n = st.number_input("Number of Images", step=1, value=1, min_value=1)
         label = st.selectbox("Label", options=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
         cfg_scale = st.slider("CFG Scale", min_value=0.0, max_value=1.0, value=0.5)
 
