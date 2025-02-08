@@ -92,6 +92,17 @@ class DiffusionConfigs:
 
         return diffusion
 
+    def sample(self, *args, **kwargs):
+        diffusion = self.load_model()
+        if diffusion is None:
+            return None
+
+        x = diffusion.sample(*args, **kwargs)
+
+        images = utils.to_image(x).squeeze(1).cpu().numpy()
+
+        return images
+
     def __init__(self):
         self.model_name = "ddpm"
         self.in_channels = 1
@@ -103,11 +114,6 @@ class DiffusionConfigs:
 
 
 def inference_tab(config: DiffusionConfigs):
-    diffusion = config.load_model()
-    if diffusion is None:
-        st.toast("Please Select Model Weights")
-        return
-
     if config.model_name == "ddpm":
         st.markdown(
             """
@@ -119,8 +125,10 @@ def inference_tab(config: DiffusionConfigs):
         n = st.number_input("Number of Images", step=1, value=1)
 
         if st.button("Generate Image"):
-            x = diffusion.sample(n=n)
-            images = utils.to_image(x).squeeze().cpu().numpy()
+            images = config.sample(n=n)
+
+            if images is None:
+                st.toast("Please Select Model Weights")
 
             cols = st.columns(4)
 
@@ -145,8 +153,14 @@ def inference_tab(config: DiffusionConfigs):
         labels = torch.Tensor([label]).long().to(config.device)
 
         if st.button("Generate Image"):
-            x = diffusion.sample(n=n, labels=labels, cfg_scale=cfg_scale)
-            images = utils.to_image(x).squeeze().cpu().numpy()
+            images = config.sample(
+                n=n,
+                labels=labels,
+                cfg_scale=cfg_scale,
+            )
+
+            if images is None:
+                st.toast("Please Select Model Weights")
 
             cols = st.columns(4)
 
