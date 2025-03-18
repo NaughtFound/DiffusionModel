@@ -3,7 +3,7 @@ import torch
 from typing import Literal
 import streamlit as st
 from PIL import Image
-from trainer import ddpm, cfg, ldm
+from trainer.models import ddpm, cfg, ldm
 import utils
 
 
@@ -34,61 +34,55 @@ class DiffusionConfigs:
         return checkpoints
 
     def load_model(self):
+        if self.checkpoint is None:
+            return
+
         if self.model_name == "ddpm":
-            args = ddpm.create_default_args()
-            args.prefix = "ui"
-            args.in_channels = self.in_channels
-            args.img_size = self.img_size
-            args.model_type = "sde"
-            args.run_name = "ddpm"
-            args.checkpoint = self.checkpoint
-            args.device = self.device
-            args.beta_start = self.beta_start
-            args.beta_end = self.beta_end
+            trainer = ddpm.DDPMTrainer.create_for_inference(
+                prefix="ui",
+                in_channels=self.in_channels,
+                img_size=self.img_size,
+                model_type="sde",
+                run_name="ddpm",
+                checkpoint=self.checkpoint,
+                device=self.device,
+                beta_start=self.beta_start,
+                beta_end=self.beta_end,
+            )
 
-            if self.checkpoint is None:
-                return
-
-            eps_theta, _, _ = ddpm.load_last_checkpoint(args)
-            diffusion = ddpm.create_diffusion_model(eps_theta, args)
+            diffusion = trainer.diffusion
 
         elif self.model_name == "cfg":
-            args = cfg.create_default_args()
-            args.prefix = "ui"
-            args.in_channels = self.in_channels
-            args.img_size = self.img_size
-            args.num_classes = self.num_classes
-            args.model_type = "sde"
-            args.run_name = "cfg"
-            args.checkpoint = self.checkpoint
-            args.device = self.device
-            args.beta_start = self.beta_start
-            args.beta_end = self.beta_end
+            trainer = cfg.CFGTrainer.create_for_inference(
+                prefix="ui",
+                in_channels=self.in_channels,
+                img_size=self.img_size,
+                num_classes=self.num_classes,
+                model_type="sde",
+                run_name="cfg",
+                checkpoint=self.checkpoint,
+                device=self.device,
+                beta_start=self.beta_start,
+                beta_end=self.beta_end,
+            )
 
-            if self.checkpoint is None:
-                return
-
-            eps_theta, _, _ = cfg.load_last_checkpoint(args)
-            diffusion = cfg.create_diffusion_model(eps_theta, args)
+            diffusion = trainer.diffusion
 
         elif self.model_name == "ldm":
-            args = ldm.create_default_args()
-            args.prefix = "ui"
-            args.in_channels = self.in_channels
-            args.img_size = self.img_size
-            args.num_classes = self.num_classes
-            args.model_type = "sde"
-            args.run_name = "ldm"
-            args.checkpoint = self.checkpoint
-            args.device = self.device
-            args.beta_start = self.beta_start
-            args.beta_end = self.beta_end
+            trainer = ldm.LDMTrainer.create_for_inference(
+                prefix="ui",
+                in_channels=self.in_channels,
+                img_size=self.img_size,
+                num_classes=self.num_classes,
+                model_type="sde",
+                run_name="ldm",
+                checkpoint=self.checkpoint,
+                device=self.device,
+                beta_start=self.beta_start,
+                beta_end=self.beta_end,
+            )
 
-            if self.checkpoint is None:
-                return
-
-            eps_theta, _, _ = ldm.load_last_checkpoint(args)
-            diffusion = ldm.create_diffusion_model(eps_theta, args)
+            diffusion = trainer.diffusion
 
         return diffusion
 

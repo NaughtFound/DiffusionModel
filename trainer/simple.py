@@ -103,7 +103,7 @@ class SimpleTrainer(Trainer):
         args = trainer.args
 
         for k in kwargs:
-            args[k] = kwargs[k]
+            setattr(args, k, kwargs[k])
 
         model = trainer.load_last_checkpoint()[0]
         model.eval()
