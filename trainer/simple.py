@@ -25,6 +25,12 @@ class SimpleTrainer(Trainer):
         parser = self.get_arg_parser()
         self.args = parser.parse_args()
 
+        logging.basicConfig(
+            format="%(asctime)s - %(levelname)s: %(message)s",
+            level=logging.INFO,
+            datefmt="%I:%M:%S",
+        )
+
     def train(self):
         dataloader = self.create_dataloader()
 
