@@ -6,11 +6,11 @@ from torch.utils.data import DataLoader
 
 class Trainer(ABC):
     @abstractmethod
-    def create_model(self, args: Namespace):
+    def create_model(self) -> Any:
         pass
 
     @abstractmethod
-    def load_last_checkpoint(self, args: Namespace) -> Any:
+    def load_last_checkpoint(self) -> Any:
         pass
 
     @abstractmethod

@@ -13,7 +13,9 @@ import utils
 
 
 class VAETrainer(SimpleTrainer):
-    def create_model(self, args: Namespace) -> VAE:
+    def create_model(self) -> VAE:
+        args = self.args
+
         if args.model_type == "vq":
             params = VAE_VQ_Params(args.device)
             params.in_channels = args.in_channels
@@ -30,7 +32,7 @@ class VAETrainer(SimpleTrainer):
     def load_last_checkpoint(self):
         args = self.args
 
-        vae = self.create_model(args).to(args.device)
+        vae = self.create_model().to(args.device)
 
         optimizer = optim.Adam(vae.parameters(), lr=args.lr)
 
