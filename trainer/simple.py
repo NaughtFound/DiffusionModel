@@ -35,7 +35,7 @@ class SimpleTrainer(Trainer):
         pass
 
     @abstractmethod
-    def pre_inference(model: nn.Module):
+    def pre_inference(self, model: nn.Module):
         pass
 
     def __init__(self):
