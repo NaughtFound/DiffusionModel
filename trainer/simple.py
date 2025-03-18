@@ -37,14 +37,19 @@ class SimpleTrainer(Trainer):
     def __init__(self):
         super().__init__()
 
-        parser = self.get_arg_parser()
-        self.args = parser.parse_args()
+        self.args = self.create_default_args()
 
         logging.basicConfig(
             format="%(asctime)s - %(levelname)s: %(message)s",
             level=logging.INFO,
             datefmt="%I:%M:%S",
         )
+
+    def launch(self):
+        parser = self.get_arg_parser()
+        self.args = parser.parse_args()
+
+        self.train()
 
     def train(self):
         args = self.args
