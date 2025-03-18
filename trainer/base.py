@@ -18,7 +18,7 @@ class Trainer(ABC):
         pass
 
     @abstractmethod
-    def pre_train(self):
+    def pre_train(self, *args: Any, **kwargs: Any):
         pass
 
     @abstractmethod

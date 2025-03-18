@@ -4,6 +4,7 @@ from typing import Any
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.utils.data import DataLoader
 from torch.utils.tensorboard.writer import SummaryWriter
 import logging
 from tqdm import tqdm
@@ -16,7 +17,21 @@ class SimpleTrainer(Trainer):
         pass
 
     @abstractmethod
+    def pre_train(self, dataloader: DataLoader):
+        pass
+
+    @abstractmethod
     def train_step(self, model: nn.Module, batch: Any) -> torch.Tensor:
+        pass
+
+    @abstractmethod
+    def save_step(
+        self,
+        model: nn.Module,
+        optimizer: optim.Optimizer,
+        epoch: int,
+        batch: Any,
+    ) -> torch.Tensor:
         pass
 
     def __init__(self):
@@ -32,14 +47,15 @@ class SimpleTrainer(Trainer):
         )
 
     def train(self):
-        dataloader = self.create_dataloader()
+        args = self.args
 
-        parser = self.get_arg_parser()
-        args = parser.parse_args()
+        dataloader = self.create_dataloader()
 
         model, optimizer, last_epoch = self.load_last_checkpoint()
 
-        self.pre_train()
+        model.train()
+
+        self.pre_train(dataloader=dataloader)
 
         logger = SummaryWriter(os.path.join(args.prefix, "runs", args.run_name))
 
@@ -63,6 +79,11 @@ class SimpleTrainer(Trainer):
                 logger.add_scalar("Loss", loss.item(), global_step=epoch * len_data + i)
 
             if (epoch + 1) % args.save_freq == 0:
-                self.save_step()
+                self.save_step(
+                    model=model,
+                    optimizer=optimizer,
+                    epoch=epoch,
+                    batch=batch,
+                )
 
         self.post_train()
