@@ -17,7 +17,7 @@ class SimpleTrainer(Trainer):
         pass
 
     @abstractmethod
-    def pre_train(self, dataloader: DataLoader):
+    def pre_train(self, dataloader: DataLoader, model: nn.Module):
         pass
 
     @abstractmethod
@@ -60,7 +60,7 @@ class SimpleTrainer(Trainer):
 
         model.train()
 
-        self.pre_train(dataloader=dataloader)
+        self.pre_train(dataloader=dataloader, model=model)
 
         logger = SummaryWriter(os.path.join(args.prefix, "runs", args.run_name))
 

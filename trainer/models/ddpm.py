@@ -1,47 +1,63 @@
-import argparse
 from typing import Any
+import argparse
 import torch
-from torch import optim
+from torch import optim, nn
 from torch.utils.data import DataLoader
 from argparse import Namespace
 import logging
-from tqdm import tqdm
-from models.vae.base import VAE
-from models.vae.vq import VAE_VQ_Params, VAE_VQ
-from trainer.simple import SimpleTrainer
 import utils
+from models.unet.base import UNet
+from models.diffusion.base import Diffusion
+from models.diffusion.ddpm import Diffusion_DDPM
+from models.sde.ddpm import SDE_DDPM, SDE_DDPM_Params
+from trainer.simple import SimpleTrainer
 
 
-class VAETrainer(SimpleTrainer):
-    def create_model(self) -> VAE:
+class DDPMTrainer(SimpleTrainer):
+    def create_diffusion_model(self, eps_theta: nn.Module) -> Diffusion:
         args = self.args
 
-        if args.model_type == "vq":
-            params = VAE_VQ_Params(args.device)
-            params.in_channels = args.in_channels
-            params.img_size = args.img_size
-            params.hidden_dim = args.hidden_dim
-            params.embedding_dim = args.embedding_dim
-            params.n_embeddings = args.n_embeddings
-            params.res_h_dim = args.res_h_dim
-            params.n_res_layers = args.n_res_layers
-            params.beta = args.beta
+        if args.model_type == "default":
+            return Diffusion_DDPM(
+                noise_predictor=eps_theta,
+                T=args.T,
+                beta_start=args.beta_start,
+                beta_end=args.beta_end,
+                img_size=args.img_size,
+                in_channels=args.in_channels,
+                device=args.device,
+            )
 
-            return VAE_VQ(params)
+        if args.model_type == "sde":
+            params = SDE_DDPM_Params(args.device)
+            params.eps_theta = eps_theta
+            params.beta_start = args.beta_start
+            params.beta_end = args.beta_end
+            params.input_size = (args.in_channels, args.img_size, args.img_size)
+
+            return SDE_DDPM(params)
+
+    def create_model(self):
+        args = self.args
+
+        return UNet(
+            in_channels=args.in_channels,
+            out_channels=args.in_channels,
+        )
 
     def load_last_checkpoint(self):
         args = self.args
 
-        vae = self.create_model().to(args.device)
+        eps_theta = self.create_model().to(args.device)
 
-        optimizer = optim.Adam(vae.parameters(), lr=args.lr)
+        optimizer = optim.AdamW(eps_theta.parameters(), lr=args.lr)
 
         last_epoch = 0
 
         if hasattr(args, "checkpoint") and args.checkpoint is not None:
             logging.info(f"Loading checkpoint {args.checkpoint}")
             last_epoch = utils.load_state_dict(
-                vae,
+                eps_theta,
                 optimizer,
                 args.prefix,
                 args.run_name,
@@ -49,9 +65,9 @@ class VAETrainer(SimpleTrainer):
                 args.device,
             )
 
-            vae.to(args.device)
+            eps_theta.to(args.device)
 
-        return vae, optimizer, last_epoch
+        return eps_theta, optimizer, last_epoch
 
     def create_dataloader(self) -> DataLoader:
         args = self.args
@@ -61,50 +77,41 @@ class VAETrainer(SimpleTrainer):
 
         return dataloader
 
-    def calc_var(self, dataloader: DataLoader) -> torch.Tensor:
-        mean = 0.0
-        mean_sq = 0.0
-        for batch in tqdm(dataloader, desc="Calculating variance of input dataset"):
-            data = batch[0]
+    def pre_train(self, model: nn.Module, **kwargs):
+        self.diffusion = self.create_diffusion_model(model)
+        self.diffusion.train()
 
-            mean = data.mean()
-            mean_sq = (data**2).mean()
-
-        return torch.sqrt(mean_sq - mean**2)
-
-    def pre_train(self, dataloader: DataLoader, **kwargs):
-        self.var = self.calc_var(dataloader)
-
-    def train_step(self, model: VAE, batch: Any) -> torch.Tensor:
+    def train_step(self, batch: Any, **kwargs) -> torch.Tensor:
         device = self.args.device
 
         images = batch[0].to(device)
+        t = self.diffusion.t(images.shape[0])
 
-        loss = model.calc_loss(images, self.var)
+        loss = self.diffusion.calc_loss(images, t)
 
         return loss
 
     def save_step(
         self,
-        model: VAE,
+        model: nn.Module,
         optimizer: optim.Optimizer,
         epoch: int,
         batch: Any,
     ):
         args = self.args
-        images = batch[0].to(args.device)
+        n = len(batch[0])
 
         logging.info(f"Sampling for epoch {epoch+1}")
-        model.eval()
-        sampled_images = model.forward(images)
-        model.train()
+        self.diffusion.eval()
+        sampled_images = self.diffusion.sample(n=n)
+        self.diffusion.train()
+        logging.info(f"Saving results for epoch {epoch+1}")
         utils.save_images(
             sampled_images,
             args.prefix,
             args.run_name,
             f"{epoch+1}.jpg",
         )
-        logging.info(f"Saving results for epoch {epoch+1}")
         utils.save_state_dict(
             model,
             optimizer,
@@ -120,19 +127,16 @@ class VAETrainer(SimpleTrainer):
     def create_default_args(self):
         args = Namespace()
         args.prefix = "."
-        args.run_name = "VAE-VQ"
-        args.model_type = "vq"
+        args.run_name = "DDPM_unconditional"
+        args.model_type = "default"
         args.epochs = 500
         args.batch_size = 12
         args.shuffle = True
+        args.img_size = 64
         args.in_channels = 3
-        args.img_size = 54
-        args.hidden_dim = 64
-        args.embedding_dim = 32
-        args.n_embeddings = 256
-        args.res_h_dim = 16
-        args.n_res_layers = 1
-        args.beta = 0.25
+        args.T = 1000
+        args.beta_start = 1e-4
+        args.beta_end = 2e-2
         args.device = "cuda"
         args.lr = 3e-4
         args.checkpoint = None
@@ -151,14 +155,11 @@ class VAETrainer(SimpleTrainer):
         parser.add_argument("--epochs", type=int, default=d_args.epochs)
         parser.add_argument("--batch_size", type=int, default=d_args.batch_size)
         parser.add_argument("--shuffle", type=bool, default=d_args.shuffle)
-        parser.add_argument("--in_channels", type=int, default=d_args.in_channels)
         parser.add_argument("--img_size", type=int, default=d_args.img_size)
-        parser.add_argument("--hidden_dim", type=int, default=d_args.hidden_dim)
-        parser.add_argument("--embedding_dim", type=int, default=d_args.embedding_dim)
-        parser.add_argument("--n_embeddings", type=int, default=d_args.n_embeddings)
-        parser.add_argument("--res_h_dim", type=int, default=d_args.res_h_dim)
-        parser.add_argument("--n_res_layers", type=int, default=d_args.n_res_layers)
-        parser.add_argument("--beta", type=float, default=d_args.beta)
+        parser.add_argument("--in_channels", type=int, default=d_args.in_channels)
+        parser.add_argument("--T", type=int, default=d_args.T)
+        parser.add_argument("--beta_start", type=float, default=d_args.beta_start)
+        parser.add_argument("--beta_end", type=float, default=d_args.beta_end)
         parser.add_argument("--dataset_path", type=str, required=True)
         parser.add_argument("--device", type=str, default=d_args.device)
         parser.add_argument("--lr", type=float, default=d_args.lr)
