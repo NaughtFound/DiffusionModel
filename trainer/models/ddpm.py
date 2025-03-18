@@ -124,6 +124,11 @@ class DDPMTrainer(SimpleTrainer):
     def post_train(self):
         pass
 
+    def pre_inference(self, model: nn.Module, **kwargs):
+        self.pre_train(model=model, **kwargs)
+
+        self.diffusion.eval()
+
     def create_default_args(self):
         args = Namespace()
         args.prefix = "."

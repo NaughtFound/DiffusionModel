@@ -38,6 +38,10 @@ class Trainer(ABC):
         pass
 
     @abstractmethod
+    def pre_inference(self, *args: Any, **kwargs: Any):
+        pass
+
+    @abstractmethod
     def get_arg_parser(self) -> ArgumentParser:
         pass
 

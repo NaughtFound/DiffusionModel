@@ -34,6 +34,10 @@ class SimpleTrainer(Trainer):
     ) -> torch.Tensor:
         pass
 
+    @abstractmethod
+    def pre_inference(model: nn.Module):
+        pass
+
     def __init__(self):
         super().__init__()
 
@@ -92,3 +96,18 @@ class SimpleTrainer(Trainer):
                 )
 
         self.post_train()
+
+    @classmethod
+    def create_for_inference(cls, **kwargs):
+        trainer = cls()
+        args = trainer.args
+
+        for k in kwargs:
+            args[k] = kwargs[k]
+
+        model = trainer.load_last_checkpoint()[0]
+        model.eval()
+
+        trainer.pre_inference(model=model)
+
+        return trainer

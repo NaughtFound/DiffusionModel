@@ -142,6 +142,12 @@ class LDMTrainer(DDPMTrainer):
             f"ckpt-{epoch+1}.pt",
         )
 
+    def pre_inference(self, model: nn.Module, **kwargs):
+        self.pre_train(model=model, **kwargs)
+
+        self.diffusion.eval()
+        self.vae.eval()
+
     def create_default_args(self):
         args = Namespace()
         args.prefix = "."
