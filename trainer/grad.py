@@ -56,30 +56,39 @@ class GradientTrainer(Trainer):
 
         self.pre_train(dataloader=train_dataloader, model=model)
 
-        logger = SummaryWriter(os.path.join(args.prefix, "runs", args.run_name))
+        train_logger = SummaryWriter(
+            os.path.join(args.prefix, "runs_train", args.run_name)
+        )
 
         len_train_data = len(train_dataloader)
+
+        if valid_dataloader is not None:
+            len_valid_data = len(valid_dataloader)
+            valid_logger = SummaryWriter(
+                os.path.join(args.prefix, "runs_valid", args.run_name)
+            )
 
         for epoch in range(last_epoch + 1, args.epochs):
             logging.info(f"Starting epoch {epoch+1}")
 
-            for i, batch in enumerate(
-                tqdm(
-                    train_dataloader,
-                    desc=f"Training [{epoch + 1}/{args.epochs}]",
-                )
+            train_loss = 0
+
+            for batch in tqdm(
+                train_dataloader,
+                desc=f"Training [{epoch + 1}/{args.epochs}]",
             ):
                 loss = self.train_step(model=model, batch=batch)
+                train_loss += loss.item()
 
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
 
-                logger.add_scalar(
-                    "Loss",
-                    loss.item(),
-                    global_step=epoch * len_train_data + i,
-                )
+            train_logger.add_scalar(
+                "Loss",
+                train_loss / len_train_data,
+                global_step=epoch,
+            )
 
             if (epoch + 1) % args.save_freq == 0:
                 self.save_step(
@@ -88,6 +97,27 @@ class GradientTrainer(Trainer):
                     epoch=epoch,
                     batch=batch,
                 )
+
+            if valid_dataloader is None:
+                continue
+
+            valid_loss = 0
+
+            with torch.no_grad():
+                model.eval()
+                for batch in tqdm(
+                    valid_dataloader,
+                    desc=f"Validation [{epoch + 1}/{args.epochs}]",
+                ):
+                    loss = self.train_step(model=model, batch=batch)
+                    valid_loss += loss.item()
+
+                valid_logger.add_scalar(
+                    "Loss",
+                    valid_loss / len_valid_data,
+                    global_step=epoch,
+                )
+                model.train()
 
         self.post_train()
 
