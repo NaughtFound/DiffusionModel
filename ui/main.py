@@ -173,7 +173,6 @@ def main():
     tabs = st.tabs(
         [
             "Inference With Diffusion Models",
-            "Generate Counterfactual Images",
         ]
     )
 
