@@ -10,6 +10,7 @@ from models.vae.base import VAE
 from models.vae.vq import VAE_VQ_Params, VAE_VQ
 from trainer.grad import GradientTrainer
 import utils
+from utils.loader import DatasetLoader
 
 
 class VAETrainer(GradientTrainer):
@@ -119,8 +120,6 @@ class VAETrainer(GradientTrainer):
         args.run_name = "VAE-VQ"
         args.model_type = "vq"
         args.epochs = 500
-        args.batch_size = 12
-        args.shuffle = True
         args.in_channels = 3
         args.img_size = 54
         args.hidden_dim = 64
@@ -145,8 +144,6 @@ class VAETrainer(GradientTrainer):
         parser.add_argument("--run_name", type=str, default=d_args.run_name)
         parser.add_argument("--model_type", type=str, default=d_args.model_type)
         parser.add_argument("--epochs", type=int, default=d_args.epochs)
-        parser.add_argument("--batch_size", type=int, default=d_args.batch_size)
-        parser.add_argument("--shuffle", type=bool, default=d_args.shuffle)
         parser.add_argument("--in_channels", type=int, default=d_args.in_channels)
         parser.add_argument("--img_size", type=int, default=d_args.img_size)
         parser.add_argument("--hidden_dim", type=int, default=d_args.hidden_dim)
@@ -155,7 +152,7 @@ class VAETrainer(GradientTrainer):
         parser.add_argument("--res_h_dim", type=int, default=d_args.res_h_dim)
         parser.add_argument("--n_res_layers", type=int, default=d_args.n_res_layers)
         parser.add_argument("--beta", type=float, default=d_args.beta)
-        parser.add_argument("--dataset_path", type=str, required=True)
+        parser.add_argument("--loader", type=DatasetLoader, required=True)
         parser.add_argument("--device", type=str, default=d_args.device)
         parser.add_argument("--lr", type=float, default=d_args.lr)
         parser.add_argument("--checkpoint", type=str, default=d_args.checkpoint)

@@ -10,6 +10,7 @@ from models.diffusion.base import Diffusion
 from models.diffusion.ddpm import Diffusion_DDPM
 from models.sde.ddpm import SDE_DDPM, SDE_DDPM_Params
 from trainer.grad import GradientTrainer
+from utils.loader import DatasetLoader
 
 
 class DDPMTrainer(GradientTrainer):
@@ -126,8 +127,6 @@ class DDPMTrainer(GradientTrainer):
         args.run_name = "DDPM_unconditional"
         args.model_type = "default"
         args.epochs = 500
-        args.batch_size = 12
-        args.shuffle = True
         args.img_size = 64
         args.in_channels = 3
         args.T = 1000
@@ -149,14 +148,12 @@ class DDPMTrainer(GradientTrainer):
         parser.add_argument("--run_name", type=str, default=d_args.run_name)
         parser.add_argument("--model_type", type=str, default=d_args.model_type)
         parser.add_argument("--epochs", type=int, default=d_args.epochs)
-        parser.add_argument("--batch_size", type=int, default=d_args.batch_size)
-        parser.add_argument("--shuffle", type=bool, default=d_args.shuffle)
         parser.add_argument("--img_size", type=int, default=d_args.img_size)
         parser.add_argument("--in_channels", type=int, default=d_args.in_channels)
         parser.add_argument("--T", type=int, default=d_args.T)
         parser.add_argument("--beta_start", type=float, default=d_args.beta_start)
         parser.add_argument("--beta_end", type=float, default=d_args.beta_end)
-        parser.add_argument("--dataset_path", type=str, required=True)
+        parser.add_argument("--loader", type=DatasetLoader, required=True)
         parser.add_argument("--device", type=str, default=d_args.device)
         parser.add_argument("--lr", type=float, default=d_args.lr)
         parser.add_argument("--checkpoint", type=str, default=d_args.checkpoint)
