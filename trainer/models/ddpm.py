@@ -1,8 +1,6 @@
 from typing import Any
-import argparse
 import torch
 from torch import optim, nn
-from argparse import Namespace
 import logging
 import utils
 from models.unet.base import UNet
@@ -10,7 +8,6 @@ from models.diffusion.base import Diffusion
 from models.diffusion.ddpm import Diffusion_DDPM
 from models.sde.ddpm import SDE_DDPM, SDE_DDPM_Params
 from trainer.grad import GradientTrainer
-from utils.loader import DatasetLoader
 
 
 class DDPMTrainer(GradientTrainer):
@@ -122,41 +119,26 @@ class DDPMTrainer(GradientTrainer):
         self.diffusion.eval()
 
     def create_default_args(self):
-        args = Namespace()
-        args.prefix = "."
+        args = super().create_default_args()
         args.run_name = "DDPM_unconditional"
         args.model_type = "default"
-        args.epochs = 500
         args.img_size = 64
         args.in_channels = 3
         args.T = 1000
         args.beta_start = 1e-4
         args.beta_end = 2e-2
-        args.device = "cuda"
-        args.lr = 3e-4
-        args.checkpoint = None
-        args.save_freq = 5
 
         return args
 
     def get_arg_parser(self):
-        parser = argparse.ArgumentParser()
+        parser = super().get_arg_parser()
 
         d_args = self.create_default_args()
 
-        parser.add_argument("--prefix", type=str, default=d_args.prefix)
-        parser.add_argument("--run_name", type=str, default=d_args.run_name)
-        parser.add_argument("--model_type", type=str, default=d_args.model_type)
-        parser.add_argument("--epochs", type=int, default=d_args.epochs)
         parser.add_argument("--img_size", type=int, default=d_args.img_size)
         parser.add_argument("--in_channels", type=int, default=d_args.in_channels)
         parser.add_argument("--T", type=int, default=d_args.T)
         parser.add_argument("--beta_start", type=float, default=d_args.beta_start)
         parser.add_argument("--beta_end", type=float, default=d_args.beta_end)
-        parser.add_argument("--loader", type=DatasetLoader, required=True)
-        parser.add_argument("--device", type=str, default=d_args.device)
-        parser.add_argument("--lr", type=float, default=d_args.lr)
-        parser.add_argument("--checkpoint", type=str, default=d_args.checkpoint)
-        parser.add_argument("--save_freq", type=int, default=d_args.save_freq)
 
         return parser

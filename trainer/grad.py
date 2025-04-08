@@ -1,6 +1,7 @@
 import os
 from abc import abstractmethod
 from typing import Any
+import argparse
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -9,7 +10,7 @@ from torch.utils.tensorboard.writer import SummaryWriter
 import logging
 from tqdm import tqdm
 from utils import setup_logging
-from utils.loader import ConfigKey
+from utils.loader import ConfigKey, DatasetLoader
 from .base import Trainer
 
 
@@ -127,3 +128,33 @@ class GradientTrainer(Trainer):
         trainer.pre_inference(model=model)
 
         return trainer
+
+    def create_default_args(self):
+        args = argparse.Namespace()
+        args.prefix = "."
+        args.run_name = ""
+        args.model_type = ""
+        args.epochs = 500
+        args.lr = 3e-4
+        args.device = "cuda"
+        args.checkpoint = None
+        args.save_freq = 5
+
+        return args
+
+    def get_arg_parser(self):
+        parser = argparse.ArgumentParser()
+
+        d_args = self.create_default_args()
+
+        parser.add_argument("--prefix", type=str, default=d_args.prefix)
+        parser.add_argument("--run_name", type=str, default=d_args.run_name)
+        parser.add_argument("--model_type", type=str, default=d_args.model_type)
+        parser.add_argument("--epochs", type=int, default=d_args.epochs)
+        parser.add_argument("--lr", type=float, default=d_args.lr)
+        parser.add_argument("--device", type=str, default=d_args.device)
+        parser.add_argument("--checkpoint", type=str, default=d_args.checkpoint)
+        parser.add_argument("--save_freq", type=int, default=d_args.save_freq)
+        parser.add_argument("--loader", type=DatasetLoader, required=True)
+
+        return parser
