@@ -66,7 +66,7 @@ class GradientTrainer(Trainer):
     def train(self):
         args = self.args
 
-        dataloader_class = self.create_dataloader(args.loader)
+        dataloader_class = self.create_dataloader(args.loader, args)
         dataloaders = dataloader_class.create_dataloaders()
 
         train_dataloader = dataloaders[ConfigKey.train]

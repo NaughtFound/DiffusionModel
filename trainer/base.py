@@ -13,9 +13,9 @@ class Trainer(ABC):
     def load_last_checkpoint(self) -> Any:
         pass
 
-    def create_dataloader(self, loader: Any) -> DatasetLoader:
+    def create_dataloader(self, loader: Any, args: Namespace) -> DatasetLoader:
         try:
-            instance = loader()
+            instance = loader(args)
             if not isinstance(instance, DatasetLoader):
                 raise TypeError(
                     f"Created instance must be a DatasetLoader, got {type(instance)}"
