@@ -1,10 +1,34 @@
 from abc import ABC, abstractmethod
 from typing import Any
 from argparse import Namespace, ArgumentParser
+import logging
+from utils import setup_logging
 from utils.loader import DatasetLoader
 
 
 class Trainer(ABC):
+    def __init__(self, **kwargs):
+        super().__init__()
+
+        self.args = self.create_default_args()
+
+        for k in kwargs:
+            setattr(self.args, k, kwargs[k])
+
+        logging.basicConfig(
+            format="%(asctime)s - %(levelname)s: %(message)s",
+            level=logging.INFO,
+            datefmt="%I:%M:%S",
+        )
+
+        setup_logging(self.args.run_name, self.args.prefix)
+
+    def launch(self):
+        parser = self.get_arg_parser()
+        self.args = parser.parse_args()
+
+        self.train()
+
     @abstractmethod
     def create_model(self) -> Any:
         pass
