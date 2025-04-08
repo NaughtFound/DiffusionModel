@@ -69,14 +69,6 @@ class DDPMTrainer(SimpleTrainer):
 
         return eps_theta, optimizer, last_epoch
 
-    def create_dataloader(self) -> DataLoader:
-        args = self.args
-
-        dataset = utils.create_dataset(args)
-        dataloader = utils.create_dataloader(dataset, args)
-
-        return dataloader
-
     def pre_train(self, model: nn.Module, **kwargs):
         self.diffusion = self.create_diffusion_model(model)
         self.diffusion.train()

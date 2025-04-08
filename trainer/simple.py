@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard.writer import SummaryWriter
 import logging
 from tqdm import tqdm
+from utils.loader import ConfigKey
 from .base import Trainer
 
 
@@ -58,24 +59,29 @@ class SimpleTrainer(Trainer):
     def train(self):
         args = self.args
 
-        dataloader = self.create_dataloader()
+        dataloader_class = self.create_dataloader(args.loader)
+        dataloaders = dataloader_class.create_dataloaders()
+
+        train_dataloader = dataloaders[ConfigKey.train]
+        valid_dataloader = dataloaders.get(ConfigKey.valid)
+        test_dataloader = dataloaders.get(ConfigKey.test)
 
         model, optimizer, last_epoch = self.load_last_checkpoint()
 
         model.train()
 
-        self.pre_train(dataloader=dataloader, model=model)
+        self.pre_train(dataloader=train_dataloader, model=model)
 
         logger = SummaryWriter(os.path.join(args.prefix, "runs", args.run_name))
 
-        len_data = len(dataloader)
+        len_train_data = len(train_dataloader)
 
         for epoch in range(last_epoch, args.epochs):
             logging.info(f"Starting epoch {epoch+1}")
 
             for i, batch in enumerate(
                 tqdm(
-                    dataloader,
+                    train_dataloader,
                     desc=f"Training [{epoch + 1}/{args.epochs}]",
                 )
             ):
@@ -85,7 +91,11 @@ class SimpleTrainer(Trainer):
                 loss.backward()
                 optimizer.step()
 
-                logger.add_scalar("Loss", loss.item(), global_step=epoch * len_data + i)
+                logger.add_scalar(
+                    "Loss",
+                    loss.item(),
+                    global_step=epoch * len_train_data + i,
+                )
 
             if (epoch + 1) % args.save_freq == 0:
                 self.save_step(

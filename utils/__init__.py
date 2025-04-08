@@ -2,11 +2,8 @@ import os
 import torch
 from torch import nn, optim
 import torchvision
-from torchvision import transforms, datasets
 from PIL import Image
 from matplotlib import pyplot as plt
-from torch.utils.data import DataLoader, Dataset
-from argparse import Namespace
 from typing import Union
 
 
@@ -89,32 +86,6 @@ def load_state_dict(
         return state_dict.get("epoch")
 
     return 0
-
-
-def create_dataset(args: Namespace) -> Dataset:
-    if hasattr(args, "dataset"):
-        return args.dataset
-
-    transform = transforms.Compose(
-        [
-            transforms.RandomResizedCrop(args.img_size, scale=(0.8, 1.0)),
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-        ]
-    )
-
-    dataset = datasets.ImageFolder(
-        root=args.dataset_path,
-        transform=transform,
-    )
-
-    return dataset
-
-
-def create_dataloader(dataset: Dataset, args: Namespace) -> DataLoader:
-    dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=args.shuffle)
-
-    return dataloader
 
 
 def setup_logging(run_name: str, prefix: str = "."):

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 from argparse import Namespace, ArgumentParser
-from torch.utils.data import DataLoader
+from utils.loader import DatasetLoader
 
 
 class Trainer(ABC):
@@ -13,9 +13,16 @@ class Trainer(ABC):
     def load_last_checkpoint(self) -> Any:
         pass
 
-    @abstractmethod
-    def create_dataloader(self) -> DataLoader:
-        pass
+    def create_dataloader(self, loader: Any) -> DatasetLoader:
+        try:
+            instance = loader()
+            if not isinstance(instance, DatasetLoader):
+                raise TypeError(
+                    f"Created instance must be a DatasetLoader, got {type(instance)}"
+                )
+            return instance
+        except Exception as e:
+            raise RuntimeError(f"Failed to create loader instance: {str(e)}") from e
 
     @abstractmethod
     def pre_train(self, *args: Any, **kwargs: Any):

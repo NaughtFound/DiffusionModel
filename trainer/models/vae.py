@@ -53,14 +53,6 @@ class VAETrainer(SimpleTrainer):
 
         return vae, optimizer, last_epoch
 
-    def create_dataloader(self) -> DataLoader:
-        args = self.args
-
-        dataset = utils.create_dataset(args)
-        dataloader = utils.create_dataloader(dataset, args)
-
-        return dataloader
-
     def calc_var(self, dataloader: DataLoader) -> torch.Tensor:
         mean = 0.0
         mean_sq = 0.0
