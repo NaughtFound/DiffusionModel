@@ -119,6 +119,20 @@ class GradientTrainer(Trainer):
                 )
                 model.train()
 
+        if test_dataloader is not None:
+            len_test_data = len(test_dataloader)
+            test_loss = 0
+
+            with torch.no_grad():
+                model.eval()
+                for batch in tqdm(test_dataloader, desc="Testing"):
+                    loss = self.train_step(model=model, batch=batch)
+                    test_loss += loss.item()
+
+                model.train()
+
+            logging.info(f"Test Mean Loss: {test_loss/len_test_data}")
+
         self.post_train()
 
     @classmethod
