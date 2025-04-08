@@ -68,7 +68,7 @@ class LDMTrainer(DDPMTrainer):
 
         optimizer = optim.AdamW(model.parameters(), lr=args.lr)
 
-        last_epoch = 0
+        last_epoch = -1
 
         if hasattr(args, "checkpoint") and args.checkpoint is not None:
             logging.info(f"Loading checkpoint {args.checkpoint}")

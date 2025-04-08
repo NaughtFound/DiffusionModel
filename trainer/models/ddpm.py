@@ -2,7 +2,6 @@ from typing import Any
 import argparse
 import torch
 from torch import optim, nn
-from torch.utils.data import DataLoader
 from argparse import Namespace
 import logging
 import utils
@@ -10,10 +9,10 @@ from models.unet.base import UNet
 from models.diffusion.base import Diffusion
 from models.diffusion.ddpm import Diffusion_DDPM
 from models.sde.ddpm import SDE_DDPM, SDE_DDPM_Params
-from trainer.simple import SimpleTrainer
+from trainer.grad import GradientTrainer
 
 
-class DDPMTrainer(SimpleTrainer):
+class DDPMTrainer(GradientTrainer):
     def create_diffusion_model(self, eps_theta: nn.Module) -> Diffusion:
         args = self.args
 
@@ -52,7 +51,7 @@ class DDPMTrainer(SimpleTrainer):
 
         optimizer = optim.AdamW(eps_theta.parameters(), lr=args.lr)
 
-        last_epoch = 0
+        last_epoch = -1
 
         if hasattr(args, "checkpoint") and args.checkpoint is not None:
             logging.info(f"Loading checkpoint {args.checkpoint}")

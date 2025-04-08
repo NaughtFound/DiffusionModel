@@ -85,7 +85,7 @@ def load_state_dict(
         optimizer.load_state_dict(state_dict.get("optimizer"))
         return state_dict.get("epoch")
 
-    return 0
+    return -1
 
 
 def setup_logging(run_name: str, prefix: str = "."):

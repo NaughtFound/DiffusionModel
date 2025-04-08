@@ -8,11 +8,12 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard.writer import SummaryWriter
 import logging
 from tqdm import tqdm
+from utils import setup_logging
 from utils.loader import ConfigKey
 from .base import Trainer
 
 
-class SimpleTrainer(Trainer):
+class GradientTrainer(Trainer):
     @abstractmethod
     def load_last_checkpoint(self) -> tuple[nn.Module, optim.Optimizer, int]:
         pass
@@ -39,16 +40,21 @@ class SimpleTrainer(Trainer):
     def pre_inference(self, model: nn.Module):
         pass
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         super().__init__()
 
         self.args = self.create_default_args()
+
+        for k in kwargs:
+            setattr(self.args, k, kwargs[k])
 
         logging.basicConfig(
             format="%(asctime)s - %(levelname)s: %(message)s",
             level=logging.INFO,
             datefmt="%I:%M:%S",
         )
+
+        setup_logging(self.args.run_name, self.args.prefix)
 
     def launch(self):
         parser = self.get_arg_parser()
@@ -76,7 +82,7 @@ class SimpleTrainer(Trainer):
 
         len_train_data = len(train_dataloader)
 
-        for epoch in range(last_epoch, args.epochs):
+        for epoch in range(last_epoch + 1, args.epochs):
             logging.info(f"Starting epoch {epoch+1}")
 
             for i, batch in enumerate(

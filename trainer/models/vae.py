@@ -8,11 +8,11 @@ import logging
 from tqdm import tqdm
 from models.vae.base import VAE
 from models.vae.vq import VAE_VQ_Params, VAE_VQ
-from trainer.simple import SimpleTrainer
+from trainer.grad import GradientTrainer
 import utils
 
 
-class VAETrainer(SimpleTrainer):
+class VAETrainer(GradientTrainer):
     def create_model(self) -> VAE:
         args = self.args
 
@@ -36,7 +36,7 @@ class VAETrainer(SimpleTrainer):
 
         optimizer = optim.Adam(vae.parameters(), lr=args.lr)
 
-        last_epoch = 0
+        last_epoch = -1
 
         if hasattr(args, "checkpoint") and args.checkpoint is not None:
             logging.info(f"Loading checkpoint {args.checkpoint}")
