@@ -61,13 +61,12 @@ class SDE_CFG_Reverse(SDE_DDPM_Reverse):
     @torch.no_grad()
     def forward(
         self,
-        n: int,
+        x_t: torch.Tensor,
         labels: torch.Tensor,
         cfg_scale: float,
         dt: float = 1e-2,
     ) -> torch.Tensor:
         t = torch.tensor([-self.args.t1, -self.args.t0], device=self.args.device)
-        x_t = torch.randn(size=(n, *self.args.input_size), device=self.args.device)
 
         KWargs().insert(self.f, labels=labels, cfg_scale=cfg_scale)
 
@@ -93,7 +92,9 @@ class SDE_CFG(SDE_DDPM):
         labels: torch.Tensor,
         cfg_scale: float,
     ):
-        return self.r_sde.forward(n, labels, cfg_scale)[-1]
+        x_t = torch.randn(size=(n, *self.args.input_size), device=self.args.device)
+
+        return self.r_sde(x_t, labels, cfg_scale)[-1]
 
     def predict_noise(
         self,

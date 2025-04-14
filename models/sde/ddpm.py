@@ -119,9 +119,8 @@ class SDE_DDPM_Reverse(nn.Module):
         return -g.flatten(1)
 
     @torch.no_grad()
-    def forward(self, n: int, dt: float = 1e-2) -> torch.Tensor:
+    def forward(self, x_t: torch.Tensor, dt: float = 1e-2) -> torch.Tensor:
         t = torch.tensor([-self.args.t1, -self.args.t0], device=self.args.device)
-        x_t = torch.randn(size=(n, *self.args.input_size), device=self.args.device)
 
         x_s = torchsde.sdeint(self, x_t.flatten(1), t, dt=dt).view(len(t), *x_t.size())
 
@@ -149,7 +148,9 @@ class SDE_DDPM(Diffusion):
         return self.f_sde.analytical_sample(x_0, t)
 
     def sample(self, n: int):
-        return self.r_sde.forward(n)[-1]
+        x_t = torch.randn(size=(n, *self.args.input_size), device=self.args.device)
+
+        return self.r_sde(x_t)[-1]
 
     def predict_noise(self, x_t: torch.Tensor, t: torch.Tensor):
         return self.f_sde.s_theta(t, x_t)
