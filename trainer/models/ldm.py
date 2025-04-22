@@ -59,30 +59,6 @@ class LDMTrainer(DDPMTrainer):
 
         return nn.ModuleDict({"eps_theta": eps_theta, "tau_theta": tau_theta})
 
-    def load_last_checkpoint(self):
-        args = self.args
-
-        model = self.create_model().to(args.device)
-
-        optimizer = optim.AdamW(model.parameters(), lr=args.lr)
-
-        last_epoch = -1
-
-        if hasattr(args, "checkpoint") and args.checkpoint is not None:
-            logging.info(f"Loading checkpoint {args.checkpoint}")
-            last_epoch = utils.load_state_dict(
-                model,
-                optimizer,
-                args.prefix,
-                args.run_name,
-                args.checkpoint,
-                args.device,
-            )
-
-            model.to(args.device)
-
-        return model, optimizer, last_epoch
-
     def pre_train(self, model: nn.ModuleDict, **kwargs):
         self.diffusion = self.create_diffusion_model(**model)
         self.diffusion.train()
