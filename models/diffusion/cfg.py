@@ -1,29 +1,100 @@
 import torch
-from torch import nn
+import torchsde
+from utils import fill_tail_dims
+from utils.args import with_kwargs, KWargs
+from .ddpm import SDE_DDPM, SDE_DDPM_Params, SDE_DDPM_Forward, SDE_DDPM_Reverse
 
-from .ddpm import Diffusion_DDPM
+
+class SDE_CFG_Params(SDE_DDPM_Params):
+    pass
 
 
-class Diffusion_CFG(Diffusion_DDPM):
-    def __init__(
+class SDE_CFG_Forward(SDE_DDPM_Forward):
+    def __init__(self, args: SDE_CFG_Params):
+        super().__init__(args)
+
+    def s_theta(
         self,
-        noise_predictor: nn.Module,
-        T: int = 1000,
-        beta_start: float = 0.0001,
-        beta_end: float = 0.02,
-        img_size: int = 64,
-        in_channels: int = 3,
-        device: str = "cpu",
-    ) -> None:
-        super().__init__(
-            noise_predictor,
-            T,
-            beta_start,
-            beta_end,
-            img_size,
-            in_channels,
-            device,
-        )
+        t: torch.Tensor,
+        x: torch.Tensor,
+        labels: torch.Tensor,
+        cfg_scale: float,
+    ) -> torch.Tensor:
+        if cfg_scale == 0:
+            return super().s_theta(t, x)
+
+        if cfg_scale == 1:
+            return self.args.eps_theta(x=x, t=t, labels=labels)
+
+        unconditional_noise = self.args.eps_theta(x=x, t=t, labels=None)
+        conditional_noise = self.args.eps_theta(x=x, t=t, labels=labels)
+
+        return torch.lerp(unconditional_noise, conditional_noise, cfg_scale)
+
+
+class SDE_CFG_Reverse(SDE_DDPM_Reverse):
+    def __init__(self, forward_sde: SDE_CFG_Forward, args: SDE_CFG_Params):
+        super().__init__(forward_sde, args)
+
+        self.forward_sde = forward_sde
+        self.args = args
+
+    @with_kwargs
+    def f(
+        self,
+        t: torch.Tensor,
+        x: torch.Tensor,
+        labels: torch.Tensor,
+        cfg_scale: float,
+    ) -> torch.Tensor:
+        x = x.view(-1, *self.args.input_size)
+
+        score = self.forward_sde.s_theta(-t, x, labels, cfg_scale)
+
+        f1 = self.forward_sde.f(-t, x)
+        f2 = self.forward_sde.g(-t, x) ** 2 * score
+
+        f = -(f1 - f2)
+
+        return f.flatten(1)
+
+    @torch.no_grad()
+    def forward(
+        self,
+        x_t: torch.Tensor,
+        labels: torch.Tensor,
+        cfg_scale: float,
+        dt: float = 1e-2,
+    ) -> torch.Tensor:
+        t = torch.tensor([-self.args.t1, -self.args.t0], device=self.args.device)
+
+        KWargs().insert(self.f, labels=labels, cfg_scale=cfg_scale)
+
+        x_s = torchsde.sdeint(self, x_t.flatten(1), t, dt=dt).view(len(t), *x_t.size())
+
+        KWargs().drop(self.f)
+
+        return x_s
+
+
+class SDE_CFG(SDE_DDPM):
+    def __init__(self, args: SDE_CFG_Params):
+        super().__init__(args)
+
+        self.args = args
+
+        self.f_sde = SDE_CFG_Forward(args)
+        self.r_sde = SDE_CFG_Reverse(self.f_sde, args)
+
+    def sample(
+        self,
+        n: int,
+        labels: torch.Tensor,
+        cfg_scale: float,
+    ):
+        x_t = torch.randn(size=(n, *self.args.input_size), device=self.args.device)
+
+        return self.r_sde(x_t, labels, cfg_scale)[-1]
 
     def predict_noise(
         self,
@@ -31,42 +102,8 @@ class Diffusion_CFG(Diffusion_DDPM):
         t: torch.Tensor,
         labels: torch.Tensor,
         cfg_scale: float,
-    ) -> torch.Tensor:
-        if cfg_scale == 0:
-            return super().predict_noise(x_t, t)
-
-        if cfg_scale == 1:
-            return self.noise_predictor(x_t, t, labels)
-
-        unconditional_noise = self.noise_predictor(x_t, t, None)
-        conditional_noise = self.noise_predictor(x_t, t, labels)
-
-        return torch.lerp(unconditional_noise, conditional_noise, cfg_scale)
-
-    @torch.no_grad()
-    def sample(
-        self,
-        n: int,
-        labels: torch.Tensor,
-        cfg_scale: float,
-    ) -> torch.Tensor:
-        x_t = torch.randn(
-            (n, self.in_channels, self.img_size, self.img_size),
-            device=self.device,
-        )
-
-        for i in reversed(range(1, self.T + 1)):
-            t = (torch.ones(n, device=x_t.device) * i).long()
-
-            z = torch.randn_like(x_t) if i > 1 else torch.zeros_like(x_t)
-
-            sigma_t = torch.sqrt(self.sigma_theta(t - 1))
-
-            eps_theta = self.predict_noise(x_t, t - 1, labels, cfg_scale)
-
-            x_t = self.mu_theta(x_t, t - 1, eps_theta) + sigma_t * z
-
-        return x_t
+    ):
+        return self.f_sde.s_theta(t, x_t, labels, cfg_scale)
 
     def calc_loss(
         self,
@@ -74,12 +111,13 @@ class Diffusion_CFG(Diffusion_DDPM):
         t: torch.Tensor,
         labels: torch.Tensor,
         cfg_scale: float,
-    ) -> torch.Tensor:
-        mse = nn.MSELoss()
+    ):
+        x_t = self.f_sde.analytical_sample(x_0, t)
+        lambda_t = self.f_sde.analytical_var(x_0, t)
 
-        x_t, noise = self.forward(x_0, t)
-        noise_pred = self.predict_noise(x_t, t, labels, cfg_scale)
+        score_pred = self.f_sde.s_theta(t, x_t, labels, cfg_scale)
+        score_true = self.f_sde.analytical_score(x_t, x_0, t)
 
-        loss = mse(noise, noise_pred)
+        loss = fill_tail_dims(lambda_t, x_t) * ((score_pred - score_true) ** 2)
 
-        return loss
+        return loss.mean()

@@ -5,8 +5,8 @@ import logging
 import utils
 from models.unet.conditional import ConditionalUNet
 from models.diffusion.base import Diffusion
+from models.diffusion.ldm import SDE_LDM_Params, SDE_LDM
 from models.vae.base import VAE
-from models.sde.ldm import SDE_LDM_Params, SDE_LDM
 from trainer.models.ddpm import DDPMTrainer
 from . import vae
 
@@ -18,9 +18,6 @@ class LDMTrainer(DDPMTrainer):
         tau_theta: nn.Module,
     ) -> Diffusion:
         args = self.args
-
-        if args.model_type == "default":
-            raise NotImplementedError("default type is not implemented yet.")
 
         if args.model_type == "sde":
             params = SDE_LDM_Params(args.device)

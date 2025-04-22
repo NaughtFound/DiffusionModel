@@ -1,15 +1,12 @@
 from torch import nn
 from models.diffusion.base import Diffusion
-from models.sde.smld import SDE_SMLD_Params, SDE_SMLD
+from models.diffusion.smld import SDE_SMLD_Params, SDE_SMLD
 from trainer.models.ddpm import DDPMTrainer
 
 
 class SMLDTrainer(DDPMTrainer):
     def create_diffusion_model(self, eps_theta: nn.Module) -> Diffusion:
         args = self.args
-
-        if args.model_type == "default":
-            raise NotImplementedError("default type is not implemented yet.")
 
         if args.model_type == "sde":
             params = SDE_SMLD_Params(args.device)

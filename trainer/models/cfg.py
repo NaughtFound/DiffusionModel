@@ -5,26 +5,14 @@ from torch import optim, nn
 import logging
 import utils
 from models.unet.label_conditioned import LabelConditionedUNet
-from models.diffusion.cfg import Diffusion_CFG
 from models.diffusion.base import Diffusion
-from models.sde.cfg import SDE_CFG_Params, SDE_CFG
+from models.diffusion.cfg import SDE_CFG_Params, SDE_CFG
 from trainer.models.ddpm import DDPMTrainer
 
 
 class CFGTrainer(DDPMTrainer):
     def create_diffusion_model(self, eps_theta: nn.Module) -> Diffusion:
         args = self.args
-
-        if args.model_type == "default":
-            return Diffusion_CFG(
-                noise_predictor=eps_theta,
-                T=args.T,
-                beta_start=args.beta_start,
-                beta_end=args.beta_end,
-                img_size=args.img_size,
-                in_channels=args.in_channels,
-                device=args.device,
-            )
 
         if args.model_type == "sde":
             params = SDE_CFG_Params(args.device)
