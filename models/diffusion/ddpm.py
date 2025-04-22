@@ -5,7 +5,7 @@ from models.diffusion.base import Diffusion
 from utils import fill_tail_dims
 
 
-class SDE_DDPM_Params:
+class DDPM_Params:
     eps_theta: nn.Module
     beta_start: float
     beta_end: float
@@ -26,8 +26,8 @@ class SDE_DDPM_Params:
         self.input_size = (1, 28, 28)
 
 
-class SDE_DDPM_Forward(nn.Module):
-    def __init__(self, args: SDE_DDPM_Params):
+class DDPM_Forward(nn.Module):
+    def __init__(self, args: DDPM_Params):
         super().__init__()
 
         self.args = args
@@ -88,14 +88,14 @@ class SDE_DDPM_Forward(nn.Module):
         return fill_tail_dims(self._beta(t).sqrt(), x).expand_as(x)
 
 
-class SDE_DDPM_Reverse(nn.Module):
+class DDPM_Reverse(nn.Module):
     noise_type = "diagonal"
     sde_type = "stratonovich"
 
     def __init__(
         self,
-        forward_sde: SDE_DDPM_Forward,
-        args: SDE_DDPM_Params,
+        forward_sde: DDPM_Forward,
+        args: DDPM_Params,
     ):
         super().__init__()
 
@@ -127,14 +127,14 @@ class SDE_DDPM_Reverse(nn.Module):
         return x_s
 
 
-class SDE_DDPM(Diffusion):
-    def __init__(self, args: SDE_DDPM_Params):
+class DDPM(Diffusion):
+    def __init__(self, args: DDPM_Params):
         super().__init__()
 
         self.args = args
 
-        self.f_sde = SDE_DDPM_Forward(args)
-        self.r_sde = SDE_DDPM_Reverse(self.f_sde, args)
+        self.f_sde = DDPM_Forward(args)
+        self.r_sde = DDPM_Reverse(self.f_sde, args)
 
     def t(self, n: int):
         r = torch.rand((n,), device=self.args.device)

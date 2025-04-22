@@ -6,7 +6,7 @@ import logging
 import utils
 from models.unet.label_conditioned import LabelConditionedUNet
 from models.diffusion.base import Diffusion
-from models.diffusion.cfg import SDE_CFG_Params, SDE_CFG
+from models.diffusion.cfg import CFG_Params, CFG
 from trainer.models.ddpm import DDPMTrainer
 
 
@@ -15,13 +15,13 @@ class CFGTrainer(DDPMTrainer):
         args = self.args
 
         if args.model_type == "sde":
-            params = SDE_CFG_Params(args.device)
+            params = CFG_Params(args.device)
             params.eps_theta = eps_theta
             params.beta_start = args.beta_start
             params.beta_end = args.beta_end
             params.input_size = (args.in_channels, args.img_size, args.img_size)
 
-            return SDE_CFG(params)
+            return CFG(params)
 
     def create_model(self):
         args = self.args

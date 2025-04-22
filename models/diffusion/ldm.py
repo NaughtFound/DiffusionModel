@@ -3,15 +3,15 @@ import torch.nn as nn
 import torchsde
 from utils import fill_tail_dims
 from utils.args import with_kwargs, KWargs
-from .ddpm import SDE_DDPM, SDE_DDPM_Params, SDE_DDPM_Forward, SDE_DDPM_Reverse
+from .ddpm import DDPM, DDPM_Params, DDPM_Forward, DDPM_Reverse
 
 
-class SDE_LDM_Params(SDE_DDPM_Params):
+class LDM_Params(DDPM_Params):
     tau_theta: nn.Module
 
 
-class SDE_LDM_Forward(SDE_DDPM_Forward):
-    def __init__(self, args: SDE_LDM_Params):
+class LDM_Forward(DDPM_Forward):
+    def __init__(self, args: LDM_Params):
         super().__init__(args)
 
         self.args = args
@@ -27,8 +27,8 @@ class SDE_LDM_Forward(SDE_DDPM_Forward):
         return self.args.eps_theta(x=x, t=t, y=y)
 
 
-class SDE_LDM_Reverse(SDE_DDPM_Reverse):
-    def __init__(self, forward_sde: SDE_LDM_Forward, args: SDE_LDM_Params):
+class LDM_Reverse(DDPM_Reverse):
+    def __init__(self, forward_sde: LDM_Forward, args: LDM_Params):
         super().__init__(forward_sde, args)
 
         self.forward_sde = forward_sde
@@ -70,14 +70,14 @@ class SDE_LDM_Reverse(SDE_DDPM_Reverse):
         return x_s
 
 
-class SDE_LDM(SDE_DDPM):
-    def __init__(self, args: SDE_LDM_Params):
+class LDM(DDPM):
+    def __init__(self, args: LDM_Params):
         super().__init__(args)
 
         self.args = args
 
-        self.f_sde = SDE_LDM_Forward(args)
-        self.r_sde = SDE_LDM_Reverse(self.f_sde, args)
+        self.f_sde = LDM_Forward(args)
+        self.r_sde = LDM_Reverse(self.f_sde, args)
 
     def sample(
         self,

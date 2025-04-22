@@ -2,15 +2,15 @@ import torch
 import torchsde
 from utils import fill_tail_dims
 from utils.args import with_kwargs, KWargs
-from .ddpm import SDE_DDPM, SDE_DDPM_Params, SDE_DDPM_Forward, SDE_DDPM_Reverse
+from .ddpm import DDPM, DDPM_Params, DDPM_Forward, DDPM_Reverse
 
 
-class SDE_CFG_Params(SDE_DDPM_Params):
+class CFG_Params(DDPM_Params):
     pass
 
 
-class SDE_CFG_Forward(SDE_DDPM_Forward):
-    def __init__(self, args: SDE_CFG_Params):
+class CFG_Forward(DDPM_Forward):
+    def __init__(self, args: CFG_Params):
         super().__init__(args)
 
     def s_theta(
@@ -32,8 +32,8 @@ class SDE_CFG_Forward(SDE_DDPM_Forward):
         return torch.lerp(unconditional_noise, conditional_noise, cfg_scale)
 
 
-class SDE_CFG_Reverse(SDE_DDPM_Reverse):
-    def __init__(self, forward_sde: SDE_CFG_Forward, args: SDE_CFG_Params):
+class CFG_Reverse(DDPM_Reverse):
+    def __init__(self, forward_sde: CFG_Forward, args: CFG_Params):
         super().__init__(forward_sde, args)
 
         self.forward_sde = forward_sde
@@ -77,14 +77,14 @@ class SDE_CFG_Reverse(SDE_DDPM_Reverse):
         return x_s
 
 
-class SDE_CFG(SDE_DDPM):
-    def __init__(self, args: SDE_CFG_Params):
+class CFG(DDPM):
+    def __init__(self, args: CFG_Params):
         super().__init__(args)
 
         self.args = args
 
-        self.f_sde = SDE_CFG_Forward(args)
-        self.r_sde = SDE_CFG_Reverse(self.f_sde, args)
+        self.f_sde = CFG_Forward(args)
+        self.r_sde = CFG_Reverse(self.f_sde, args)
 
     def sample(
         self,

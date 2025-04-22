@@ -5,7 +5,7 @@ import logging
 import utils
 from models.unet.base import UNet
 from models.diffusion.base import Diffusion
-from models.diffusion.ddpm import SDE_DDPM, SDE_DDPM_Params
+from models.diffusion.ddpm import DDPM, DDPM_Params
 from trainer.grad import GradientTrainer
 
 
@@ -14,13 +14,13 @@ class DDPMTrainer(GradientTrainer):
         args = self.args
 
         if args.model_type == "sde":
-            params = SDE_DDPM_Params(args.device)
+            params = DDPM_Params(args.device)
             params.eps_theta = eps_theta
             params.beta_start = args.beta_start
             params.beta_end = args.beta_end
             params.input_size = (args.in_channels, args.img_size, args.img_size)
 
-            return SDE_DDPM(params)
+            return DDPM(params)
 
     def create_model(self):
         args = self.args

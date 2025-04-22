@@ -1,6 +1,6 @@
 from torch import nn
 from models.diffusion.base import Diffusion
-from models.diffusion.smld import SDE_SMLD_Params, SDE_SMLD
+from models.diffusion.smld import SMLD_Params, SMLD
 from trainer.models.ddpm import DDPMTrainer
 
 
@@ -9,13 +9,13 @@ class SMLDTrainer(DDPMTrainer):
         args = self.args
 
         if args.model_type == "sde":
-            params = SDE_SMLD_Params(args.device)
+            params = SMLD_Params(args.device)
             params.eps_theta = eps_theta
             params.sigma_min = args.sigma_min
             params.sigma_max = args.sigma_max
             params.input_size = (args.in_channels, args.img_size, args.img_size)
 
-            return SDE_SMLD(params)
+            return SMLD(params)
 
     def create_default_args(self):
         args = super().create_default_args()

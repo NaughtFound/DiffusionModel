@@ -5,7 +5,7 @@ import logging
 import utils
 from models.unet.conditional import ConditionalUNet
 from models.diffusion.base import Diffusion
-from models.diffusion.ldm import SDE_LDM_Params, SDE_LDM
+from models.diffusion.ldm import LDM_Params, LDM
 from models.vae.base import VAE
 from trainer.models.ddpm import DDPMTrainer
 from . import vae
@@ -20,14 +20,14 @@ class LDMTrainer(DDPMTrainer):
         args = self.args
 
         if args.model_type == "sde":
-            params = SDE_LDM_Params(args.device)
+            params = LDM_Params(args.device)
             params.eps_theta = eps_theta
             params.tau_theta = tau_theta
             params.beta_start = args.beta_start
             params.beta_end = args.beta_end
             params.input_size = (args.z_channels, args.img_size, args.img_size)
 
-            return SDE_LDM(params)
+            return LDM(params)
 
     def create_vae_model(self) -> VAE:
         args = self.args
