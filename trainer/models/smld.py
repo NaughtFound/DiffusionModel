@@ -16,7 +16,7 @@ class SMLDTrainer(DDPMTrainer):
             params.eps_theta = eps_theta
             params.sigma_min = args.sigma_min
             params.sigma_max = args.sigma_max
-            params.input_size = (args.z_channels, args.img_size, args.img_size)
+            params.input_size = (args.in_channels, args.img_size, args.img_size)
 
             return SDE_SMLD(params)
 

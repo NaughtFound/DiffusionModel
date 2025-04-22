@@ -113,7 +113,7 @@ class SDE_CFG(SDE_DDPM):
         cfg_scale: float,
     ):
         x_t = self.f_sde.analytical_sample(x_0, t)
-        lambda_t = self.f_sde.analytical_var(t)
+        lambda_t = self.f_sde.analytical_var(x_0, t)
 
         score_pred = self.f_sde.s_theta(t, x_t, labels, cfg_scale)
         score_true = self.f_sde.analytical_score(x_t, x_0, t)

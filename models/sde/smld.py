@@ -37,10 +37,10 @@ class SDE_SMLD_Forward(SDE_DDPM_Forward):
 
         return s_min * (s_max / s_min) ** t
 
-    def analytical_mean(self, x_0: torch.Tensor) -> torch.Tensor:
+    def analytical_mean(self, x_0: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         return x_0
 
-    def analytical_var(self, t: torch.Tensor) -> torch.Tensor:
+    def analytical_var(self, x_0: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         return self._sigma(t) ** 2
 
     def f(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
@@ -64,7 +64,7 @@ class SDE_SMLD_Reverse(SDE_DDPM_Reverse):
         forward_sde: SDE_SMLD_Forward,
         args: SDE_SMLD_Params,
     ):
-        super().__init__()
+        super().__init__(forward_sde, args)
 
         self.forward_sde = forward_sde
         self.args = args
@@ -72,7 +72,7 @@ class SDE_SMLD_Reverse(SDE_DDPM_Reverse):
 
 class SDE_SMLD(SDE_DDPM):
     def __init__(self, args: SDE_SMLD_Params):
-        super().__init__()
+        super().__init__(args)
 
         self.args = args
 
