@@ -13,6 +13,7 @@
     "optim",
     "Quantizer",
     "randn",
+    "SMLD",
     "swapaxes",
     "tensorboard",
     "torchvision",
