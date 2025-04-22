@@ -50,7 +50,9 @@ class SDE_SMLD_Forward(SDE_DDPM_Forward):
         s_min = self.args.sigma_min
         s_max = self.args.sigma_max
 
-        g = self._sigma(t) * (2 * torch.log(s_max / s_min)).sqrt()
+        s_min_max = torch.tensor(s_max / s_min, device=self.args.device)
+
+        g = self._sigma(t) * (2 * s_min_max.log()).sqrt()
 
         return fill_tail_dims(g, x).expand_as(x)
 
