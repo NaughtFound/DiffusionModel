@@ -2,6 +2,7 @@
   "cSpell.words": [
     "arange",
     "cumprod",
+    "DDIM",
     "DDPM",
     "figsize",
     "fromarray",
