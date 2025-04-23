@@ -126,7 +126,9 @@ class DDIM(DDPM):
         return x_t[-1]
 
     def sample(self, n):
+        s_t = self.f_sde._sigma(torch.tensor(self.args.t1, device=self.args.device))
         x_t = torch.randn(size=(n, *self.args.input_size), device=self.args.device)
-        x_0 = self.r_sde.ode_forward(x_t)
+
+        x_0 = self.r_sde.ode_forward(x_t * s_t)
 
         return x_0[-1]
