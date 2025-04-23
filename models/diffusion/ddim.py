@@ -28,6 +28,8 @@ class DDIM_Forward(DDPM_Forward):
 
     @torch.no_grad()
     def forward(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+        x = x.view(-1, *self.args.input_size)
+
         s_min = self.args.sigma_min
         s_max = self.args.sigma_max
         s_t = self._sigma(t)
@@ -52,12 +54,17 @@ class DDIM_Forward(DDPM_Forward):
         if t is None:
             t = self.args.t1
 
-        t = torch.tensor([self.args.t0, t], device=self.args.device)
+        t = torch.tensor(
+            [self.args.t0, t],
+            device=self.args.device,
+            dtype=torch.float32,
+        )
 
         x_o = torchdiffeq.odeint(
             self,
-            x_0,
+            x_0.flatten(1),
             t,
+            method="rk4",
             options={"step_size": dt},
         ).view(len(t), *x_0.size())
 
@@ -88,12 +95,17 @@ class DDIM_Reverse(DDPM_Reverse):
         x_t: torch.Tensor,
         dt: float = 1e-2,
     ) -> torch.Tensor:
-        t = torch.tensor([-self.args.t1, -self.args.t0], device=self.args.device)
+        t = torch.tensor(
+            [-self.args.t1, -self.args.t0],
+            device=self.args.device,
+            dtype=torch.float32,
+        )
 
         x_o = torchdiffeq.odeint(
             self,
-            x_t,
+            x_t.flatten(1),
             t,
+            method="rk4",
             options={"step_size": dt},
         ).view(len(t), *x_t.size())
 
