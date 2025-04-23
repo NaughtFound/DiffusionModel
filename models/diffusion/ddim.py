@@ -43,10 +43,23 @@ class DDIM_Forward(DDPM_Forward):
         return f.flatten(1)
 
     @torch.no_grad()
-    def ode_forward(self, x_0: torch.Tensor, dt: float = 1e-2) -> torch.Tensor:
-        t = torch.tensor([self.args.t0, self.args.t1], device=self.args.device)
+    def ode_forward(
+        self,
+        x_0: torch.Tensor,
+        t: float = None,
+        dt: float = 1e-2,
+    ) -> torch.Tensor:
+        if t is None:
+            t = self.args.t1
 
-        x_o = torchdiffeq.odeint(self, x_0, t, options={"step_size": dt})
+        t = torch.tensor([self.args.t0, t], device=self.args.device)
+
+        x_o = torchdiffeq.odeint(
+            self,
+            x_0,
+            t,
+            options={"step_size": dt},
+        ).view(len(t), *x_0.size())
 
         return x_o
 
@@ -70,10 +83,19 @@ class DDIM_Reverse(DDPM_Reverse):
         return self.forward_sde(-t, x)
 
     @torch.no_grad()
-    def ode_forward(self, x_t: torch.Tensor, dt: float = 1e-2) -> torch.Tensor:
+    def ode_forward(
+        self,
+        x_t: torch.Tensor,
+        dt: float = 1e-2,
+    ) -> torch.Tensor:
         t = torch.tensor([-self.args.t1, -self.args.t0], device=self.args.device)
 
-        x_o = torchdiffeq.odeint(self, x_t, t, options={"step_size": dt})
+        x_o = torchdiffeq.odeint(
+            self,
+            x_t,
+            t,
+            options={"step_size": dt},
+        ).view(len(t), *x_t.size())
 
         return x_o
 
@@ -86,3 +108,13 @@ class DDIM(DDPM):
 
         self.f_sde = DDIM_Forward(args)
         self.r_sde = DDIM_Reverse(self.f_sde, args)
+
+    def forward(self, x_0: torch.Tensor, t: float = None) -> torch.Tensor:
+        x_t = self.f_sde.ode_forward(x_0, t=t)
+        return x_t[-1]
+
+    def sample(self, n):
+        x_t = torch.randn(size=(n, *self.args.input_size), device=self.args.device)
+        x_0 = self.r_sde.ode_forward(x_t)
+
+        return x_0[-1]
