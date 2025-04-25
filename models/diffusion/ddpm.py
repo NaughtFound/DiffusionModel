@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torchsde
+import torchdiffeq
 from models.diffusion.base import Diffusion
 from utils import fill_tail_dims
 
@@ -108,9 +109,9 @@ class DDPM_Reverse(nn.Module):
         f1 = self.forward_sde.f(-t, x)
         f2 = self.forward_sde.g(-t, x) ** 2 * self.forward_sde.s_theta(-t, x)
 
-        f = -(f1 - f2)
+        f = f1 - f2
 
-        return f.flatten(1)
+        return -f.flatten(1)
 
     def g(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         x = x.view(-1, *self.args.input_size)
@@ -118,13 +119,46 @@ class DDPM_Reverse(nn.Module):
         g = self.forward_sde.g(-t, x)
         return -g.flatten(1)
 
+    def prob_flow_ode(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+        x = x.view(-1, *self.args.input_size)
+
+        f = self.forward_sde.f(-t, x)
+        g = self.forward_sde.g(-t, x)
+
+        flow = f - 0.5 * g**2 * self.forward_sde.s_theta(-t, x)
+
+        return -flow.flatten(1)
+
     @torch.no_grad()
-    def forward(self, x_t: torch.Tensor, dt: float = 1e-2) -> torch.Tensor:
-        t = torch.tensor([-self.args.t1, -self.args.t0], device=self.args.device)
+    def forward(
+        self,
+        x_t: torch.Tensor,
+        dt: float = 1e-2,
+        use_sde: bool = True,
+    ) -> torch.Tensor:
+        t = torch.tensor(
+            [-self.args.t1, -self.args.t0],
+            device=self.args.device,
+            dtype=torch.float32,
+        )
 
-        x_s = torchsde.sdeint(self, x_t.flatten(1), t, dt=dt).view(len(t), *x_t.size())
+        if use_sde:
+            x_0 = torchsde.sdeint(
+                self,
+                x_t.flatten(1),
+                t,
+                dt=dt,
+            ).view(len(t), *x_t.size())
+        else:
+            x_0 = torchdiffeq.odeint(
+                self.prob_flow_ode,
+                x_t.flatten(1),
+                t,
+                method="rk4",
+                options={"step_size": dt},
+            ).view(len(t), *x_t.size())
 
-        return x_s
+        return x_0
 
 
 class DDPM(Diffusion):
@@ -147,10 +181,10 @@ class DDPM(Diffusion):
     ):
         return self.f_sde.analytical_sample(x_0, t)
 
-    def sample(self, n: int):
+    def sample(self, n: int, use_sde: bool = True):
         x_t = torch.randn(size=(n, *self.args.input_size), device=self.args.device)
 
-        return self.r_sde(x_t)[-1]
+        return self.r_sde(x_t, use_sde=use_sde)[-1]
 
     def predict_noise(self, x_t: torch.Tensor, t: torch.Tensor):
         return self.f_sde.s_theta(t, x_t)
