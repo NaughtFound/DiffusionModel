@@ -20,7 +20,7 @@ class DDPM_Params:
         self.beta_start = 1e-4
         self.beta_end = 0.02
 
-        self.t0 = 0
+        self.t0 = 1e-5
         self.t1 = 1
 
         self.input_size = (1, 28, 28)

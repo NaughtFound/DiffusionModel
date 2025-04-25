@@ -87,7 +87,7 @@ class DDIM_Reverse(DDPM_Reverse):
 
     @torch.no_grad()
     def forward(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
-        return self.forward_sde(-t, x)
+        return -self.forward_sde(-t, x)
 
     @torch.no_grad()
     def ode_forward(
