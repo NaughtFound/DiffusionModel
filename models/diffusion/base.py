@@ -10,7 +10,11 @@ class Diffusion(ABC):
         pass
 
     @abstractmethod
-    def forward(self, *args: Any, **kwargs: Any) -> tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, *args: Any, **kwargs: Any) -> torch.Tensor:
+        pass
+
+    @abstractmethod
+    def reverse(self, *args: Any, **kwargs: Any) -> torch.Tensor:
         pass
 
     @abstractmethod

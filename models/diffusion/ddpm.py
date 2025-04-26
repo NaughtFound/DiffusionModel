@@ -88,6 +88,10 @@ class DDPM_Forward(nn.Module):
     def g(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         return fill_tail_dims(self._beta(t).sqrt(), x).expand_as(x)
 
+    @torch.no_grad()
+    def forward(self, x_0: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+        return self.analytical_sample(x_0, t)
+
 
 class DDPM_Reverse(nn.Module):
     noise_type = "diagonal"
@@ -179,7 +183,10 @@ class DDPM(Diffusion):
         x_0: torch.Tensor,
         t: torch.Tensor,
     ):
-        return self.f_sde.analytical_sample(x_0, t)
+        return self.f_sde(x_0, t)
+
+    def reverse(self, x_t: torch.Tensor, use_sde: bool = True):
+        return self.r_sde(x_t, use_sde=use_sde)[-1]
 
     def sample(self, n: int, use_sde: bool = True):
         x_t = torch.randn(size=(n, *self.args.input_size), device=self.args.device)

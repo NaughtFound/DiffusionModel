@@ -86,6 +86,14 @@ class CFG(DDPM):
         self.f_sde = CFG_Forward(args)
         self.r_sde = CFG_Reverse(self.f_sde, args)
 
+    def reverse(
+        self,
+        x_t: torch.Tensor,
+        labels: torch.Tensor,
+        cfg_scale: float,
+    ):
+        return self.r_sde(x_t, labels, cfg_scale)[-1]
+
     def sample(
         self,
         n: int,

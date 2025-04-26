@@ -79,6 +79,9 @@ class LDM(DDPM):
         self.f_sde = LDM_Forward(args)
         self.r_sde = LDM_Reverse(self.f_sde, args)
 
+    def reverse(self, x_t: torch.Tensor, y: torch.Tensor):
+        return self.r_sde(x_t, y)[-1]
+
     def sample(
         self,
         n: int,
