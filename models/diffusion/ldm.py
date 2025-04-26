@@ -48,9 +48,9 @@ class LDM_Reverse(DDPM_Reverse):
         f1 = self.forward_sde.f(-t, x)
         f2 = self.forward_sde.g(-t, x) ** 2 * score
 
-        f = -(f1 - f2)
+        f = f1 - f2
 
-        return f.flatten(1)
+        return -f.flatten(1)
 
     @torch.no_grad()
     def forward(
@@ -58,16 +58,15 @@ class LDM_Reverse(DDPM_Reverse):
         x_t: torch.Tensor,
         y: torch.Tensor,
         dt: float = 1e-2,
+        use_sde: bool = True,
     ) -> torch.Tensor:
-        t = torch.tensor([-self.args.t1, -self.args.t0], device=self.args.device)
-
         KWargs().insert(self.f, y=y)
 
-        x_s = torchsde.sdeint(self, x_t.flatten(1), t, dt=dt).view(len(t), *x_t.size())
+        x_0 = super().forward(x_t, dt, use_sde)
 
         KWargs().drop(self.f)
 
-        return x_s
+        return x_0
 
 
 class LDM(DDPM):
@@ -79,17 +78,23 @@ class LDM(DDPM):
         self.f_sde = LDM_Forward(args)
         self.r_sde = LDM_Reverse(self.f_sde, args)
 
-    def reverse(self, x_t: torch.Tensor, y: torch.Tensor):
-        return self.r_sde(x_t, y)[-1]
+    def reverse(
+        self,
+        x_t: torch.Tensor,
+        y: torch.Tensor,
+        use_sde: bool = True,
+    ):
+        return self.r_sde(x_t, y, use_sde=use_sde)[-1]
 
     def sample(
         self,
         n: int,
         y: torch.Tensor,
+        use_sde: bool = True,
     ):
         x_t = torch.randn(size=(n, *self.args.input_size), device=self.args.device)
 
-        return self.r_sde(x_t, y)[-1]
+        return self.r_sde(x_t, y, use_sde=use_sde)[-1]
 
     def predict_noise(
         self,
