@@ -23,8 +23,8 @@ class LDMTrainer(DDPMTrainer):
             params = LDM_Params(args.device)
             params.eps_theta = eps_theta
             params.tau_theta = tau_theta
-            params.beta_start = args.beta_start
-            params.beta_end = args.beta_end
+            params.beta_min = args.beta_min
+            params.beta_max = args.beta_max
             params.input_size = (args.z_channels, args.img_size, args.img_size)
 
             return LDM(params)

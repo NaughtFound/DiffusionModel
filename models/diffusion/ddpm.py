@@ -8,8 +8,8 @@ from utils import fill_tail_dims
 
 class DDPM_Params:
     eps_theta: nn.Module
-    beta_start: float
-    beta_end: float
+    beta_min: float
+    beta_max: float
     t0: float
     t1: float
     input_size: tuple[int, int, int]
@@ -18,8 +18,8 @@ class DDPM_Params:
         self.device = device
 
         self.eps_theta = None
-        self.beta_start = 1e-4
-        self.beta_end = 0.02
+        self.beta_min = 1e-4
+        self.beta_max = 0.02
 
         self.t0 = 1e-5
         self.t1 = 1
@@ -34,16 +34,16 @@ class DDPM_Forward(nn.Module):
         self.args = args
 
     def _beta(self, t: torch.Tensor) -> torch.Tensor:
-        b_s = self.args.beta_start
-        b_e = self.args.beta_end
+        b_min = self.args.beta_min
+        b_max = self.args.beta_max
 
-        return b_s + t * (b_e - b_s)
+        return b_min + t * (b_max - b_min)
 
     def _indefinite_int(self, t: torch.Tensor) -> torch.Tensor:
-        b_s = self.args.beta_start
-        b_e = self.args.beta_end
+        b_min = self.args.beta_min
+        b_max = self.args.beta_max
 
-        return b_s * t + 0.5 * t**2 * (b_e - b_s)
+        return b_min * t + 0.5 * t**2 * (b_max - b_min)
 
     def analytical_mean(self, x_0: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         int_t = self._indefinite_int(t)

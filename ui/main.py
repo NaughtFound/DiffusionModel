@@ -15,8 +15,8 @@ class DiffusionConfigs:
     checkpoint: str
     device: Literal["cpu", "cuda"]
     time: tuple[float, float]
-    beta_start: float
-    beta_end: float
+    beta_min: float
+    beta_max: float
 
     def load_checkpoints(self):
         model_path = os.path.join("ui", "weights", self.model_name)
@@ -46,8 +46,8 @@ class DiffusionConfigs:
                 run_name="ddpm",
                 checkpoint=self.checkpoint,
                 device=self.device,
-                beta_start=self.beta_start,
-                beta_end=self.beta_end,
+                beta_min=self.beta_min,
+                beta_max=self.beta_max,
             )
 
             diffusion = trainer.diffusion
@@ -62,8 +62,8 @@ class DiffusionConfigs:
                 run_name="cfg",
                 checkpoint=self.checkpoint,
                 device=self.device,
-                beta_start=self.beta_start,
-                beta_end=self.beta_end,
+                beta_min=self.beta_min,
+                beta_max=self.beta_max,
             )
 
             diffusion = trainer.diffusion
@@ -78,8 +78,8 @@ class DiffusionConfigs:
                 run_name="ldm",
                 checkpoint=self.checkpoint,
                 device=self.device,
-                beta_start=self.beta_start,
-                beta_end=self.beta_end,
+                beta_min=self.beta_min,
+                beta_max=self.beta_max,
             )
 
             diffusion = trainer.diffusion
@@ -200,7 +200,7 @@ def main():
         step=32,
     )
 
-    config.beta_start, config.beta_end = st.sidebar.slider(
+    config.beta_min, config.beta_max = st.sidebar.slider(
         "Beta",
         min_value=0.0,
         max_value=100.0,

@@ -13,8 +13,8 @@ class DDIMTrainer(DDPMTrainer):
             params.eps_theta = eps_theta
             params.sigma_min = args.sigma_min
             params.sigma_max = args.sigma_max
-            params.beta_start = args.beta_start
-            params.beta_end = args.beta_end
+            params.beta_min = args.beta_min
+            params.beta_max = args.beta_max
             params.input_size = (args.in_channels, args.img_size, args.img_size)
 
             return DDIM(params)

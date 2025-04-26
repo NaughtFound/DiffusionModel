@@ -17,8 +17,8 @@ class CFGTrainer(DDPMTrainer):
         if args.model_type == "sde":
             params = CFG_Params(args.device)
             params.eps_theta = eps_theta
-            params.beta_start = args.beta_start
-            params.beta_end = args.beta_end
+            params.beta_min = args.beta_min
+            params.beta_max = args.beta_max
             params.input_size = (args.in_channels, args.img_size, args.img_size)
 
             return CFG(params)

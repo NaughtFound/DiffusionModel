@@ -16,8 +16,8 @@ class DDPMTrainer(GradientTrainer):
         if args.model_type == "sde":
             params = DDPM_Params(args.device)
             params.eps_theta = eps_theta
-            params.beta_start = args.beta_start
-            params.beta_end = args.beta_end
+            params.beta_min = args.beta_min
+            params.beta_max = args.beta_max
             params.input_size = (args.in_channels, args.img_size, args.img_size)
 
             return DDPM(params)
@@ -113,8 +113,8 @@ class DDPMTrainer(GradientTrainer):
         args.img_size = 64
         args.in_channels = 3
         args.T = 1000
-        args.beta_start = 1e-4
-        args.beta_end = 2e-2
+        args.beta_min = 1e-4
+        args.beta_max = 2e-2
 
         return args
 
@@ -126,7 +126,7 @@ class DDPMTrainer(GradientTrainer):
         parser.add_argument("--img_size", type=int, default=d_args.img_size)
         parser.add_argument("--in_channels", type=int, default=d_args.in_channels)
         parser.add_argument("--T", type=int, default=d_args.T)
-        parser.add_argument("--beta_start", type=float, default=d_args.beta_start)
-        parser.add_argument("--beta_end", type=float, default=d_args.beta_end)
+        parser.add_argument("--beta_min", type=float, default=d_args.beta_min)
+        parser.add_argument("--beta_max", type=float, default=d_args.beta_max)
 
         return parser
