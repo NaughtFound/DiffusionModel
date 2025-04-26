@@ -52,7 +52,7 @@ class DDIM_Forward(DDPM_Forward):
 
         flow = 0.5 * g**2 * score_pred
 
-        return flow.flatten(1)
+        return -flow.flatten(1)
 
     @torch.no_grad()
     def forward(
