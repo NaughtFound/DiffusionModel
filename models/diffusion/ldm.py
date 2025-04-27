@@ -15,6 +15,7 @@ class LDM_Forward(DDPM_Forward):
 
         self.args = args
 
+    @with_kwargs
     def s_theta(
         self,
         t: torch.Tensor,
@@ -33,24 +34,6 @@ class LDM_Reverse(DDPM_Reverse):
         self.forward_sde = forward_sde
         self.args = args
 
-    @with_kwargs
-    def f(
-        self,
-        t: torch.Tensor,
-        x: torch.Tensor,
-        y: torch.Tensor,
-    ) -> torch.Tensor:
-        x = x.view(-1, *self.args.input_size)
-
-        score = self.forward_sde.s_theta(-t, x, y)
-
-        f1 = self.forward_sde.f(-t, x)
-        f2 = self.forward_sde.g(-t, x) ** 2 * score
-
-        f = f1 - f2
-
-        return -f.flatten(1)
-
     @torch.no_grad()
     def forward(
         self,
@@ -59,11 +42,11 @@ class LDM_Reverse(DDPM_Reverse):
         dt: float = 1e-2,
         use_sde: bool = True,
     ) -> torch.Tensor:
-        KWargs().insert(self.f, y=y)
+        KWargs().insert(self.forward_sde.s_theta, y=y)
 
         x_0 = super().forward(x_t, dt, use_sde)
 
-        KWargs().drop(self.f)
+        KWargs().drop(self.forward_sde.s_theta)
 
         return x_0
 

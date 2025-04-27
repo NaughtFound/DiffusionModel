@@ -12,6 +12,7 @@ class CFG_Forward(DDPM_Forward):
     def __init__(self, args: CFG_Params):
         super().__init__(args)
 
+    @with_kwargs
     def s_theta(
         self,
         t: torch.Tensor,
@@ -38,25 +39,6 @@ class CFG_Reverse(DDPM_Reverse):
         self.forward_sde = forward_sde
         self.args = args
 
-    @with_kwargs
-    def f(
-        self,
-        t: torch.Tensor,
-        x: torch.Tensor,
-        labels: torch.Tensor,
-        cfg_scale: float,
-    ) -> torch.Tensor:
-        x = x.view(-1, *self.args.input_size)
-
-        score = self.forward_sde.s_theta(-t, x, labels, cfg_scale)
-
-        f1 = self.forward_sde.f(-t, x)
-        f2 = self.forward_sde.g(-t, x) ** 2 * score
-
-        f = f1 - f2
-
-        return -f.flatten(1)
-
     @torch.no_grad()
     def forward(
         self,
@@ -66,11 +48,11 @@ class CFG_Reverse(DDPM_Reverse):
         dt: float = 1e-2,
         use_sde: bool = True,
     ) -> torch.Tensor:
-        KWargs().insert(self.f, labels=labels, cfg_scale=cfg_scale)
+        KWargs().insert(self.forward_sde.s_theta, labels=labels, cfg_scale=cfg_scale)
 
         x_0 = super().forward(x_t, dt, use_sde)
 
-        KWargs().drop(self.f)
+        KWargs().drop(self.forward_sde.s_theta)
 
         return x_0
 
