@@ -27,10 +27,7 @@ class DDIM_Forward(DDPM_Forward):
 
         return s_min * (s_max / s_min) ** t
 
-    def f(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
-        return torch.zeros_like(x)
-
-    def g(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+    def g_ode(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         s_min = self.args.sigma_min
         s_max = self.args.sigma_max
 
@@ -43,7 +40,7 @@ class DDIM_Forward(DDPM_Forward):
     def prob_flow_ode(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         x = x.view(-1, *self.args.input_size)
 
-        g = self.g(t, x)
+        g = self.g_ode(t, x)
         s_t = self._sigma(t)
 
         x_score = x / (s_t**2 + 1).sqrt()
@@ -110,19 +107,11 @@ class DDIM(DDPM):
         self.f_sde = DDIM_Forward(args)
         self.r_sde = DDIM_Reverse(self.f_sde, args)
 
-    def forward(self, x_0: torch.Tensor, t: float = None) -> torch.Tensor:
+    def forward(self, x_0: torch.Tensor, t: float = None):
         x_t = self.f_sde(x_0, t=t)
         return x_t[-1]
 
-    def reverse(self, x_t: torch.Tensor) -> torch.Tensor:
+    def reverse(self, x_t: torch.Tensor):
         x_0 = self.r_sde(x_t, use_sde=False)
-
-        return x_0[-1]
-
-    def sample(self, n):
-        s_t = self.f_sde._sigma(torch.tensor(self.args.t1, device=self.args.device))
-        x_t = torch.randn(size=(n, *self.args.input_size), device=self.args.device)
-
-        x_0 = self.r_sde(x_t * s_t, use_sde=False)
 
         return x_0[-1]
