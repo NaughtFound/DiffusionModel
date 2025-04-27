@@ -86,7 +86,7 @@ class VAETrainer(GradientTrainer):
 
         logging.info(f"Sampling for epoch {epoch+1}")
         model.eval()
-        sampled_images = model.forward(images)
+        sampled_images = model(images)
         model.train()
         utils.save_images(
             sampled_images,
