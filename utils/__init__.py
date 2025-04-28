@@ -7,12 +7,16 @@ from matplotlib import pyplot as plt
 from typing import Union
 
 
-def plot_images(images: torch.Tensor, **kwargs):
-    grid = torchvision.utils.make_grid(images, **kwargs)
+def plot_images(images: torch.Tensor, heatmap: bool = False, **kwargs):
+    grid = torchvision.utils.make_grid(images, normalize=True)
     grid_numpy = grid.permute(1, 2, 0).cpu().numpy()
 
+    if heatmap:
+        grid_numpy = grid_numpy.mean(axis=2)
+
     plt.figure(figsize=(32, 32))
-    plt.imshow(grid_numpy)
+    plt.imshow(grid_numpy, **kwargs)
+    plt.axis("off")
     plt.show()
 
 
