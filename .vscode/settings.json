@@ -10,6 +10,7 @@
     "imshow",
     "lerp",
     "levelname",
+    "lpips",
     "Multihead",
     "optim",
     "Quantizer",
