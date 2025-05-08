@@ -9,7 +9,7 @@ from .base import Metric, MetricMeta
 class LPIPSMeta(MetricMeta):
     net_type: Optional[Literal["alex", "vgg"]]
     transform: Optional[Callable[[torch.Tensor], torch.Tensor]]
-    forward_method: Callable[[torch.Tensor], torch.Tensor]
+    forward_method: Callable[[torch.Tensor, Optional[torch.Tensor]], torch.Tensor]
 
     def __init__(self):
         super().__init__()
@@ -33,11 +33,17 @@ class LPIPS(Metric):
         scores = []
 
         for batch in tqdm(dataloader, desc="Calculating"):
+            labels = None
             if isinstance(batch, list):
+                labels = batch[1]
                 batch = batch[0]
 
             real_images = batch.to(self.meta.device)
-            fake_images = self.meta.forward_method(real_images)
+
+            if labels is not None:
+                labels = labels.to(self.meta.device)
+
+            fake_images = self.meta.forward_method(real_images, labels)
 
             if self.meta.transform is not None:
                 real_images = self.meta.transform(real_images)

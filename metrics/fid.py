@@ -11,7 +11,7 @@ from .base import Metric, MetricMeta
 class FIDMeta(MetricMeta):
     inception: nn.Module
     transform: Optional[Callable[[torch.Tensor], torch.Tensor]]
-    forward_method: Callable[[torch.Tensor], torch.Tensor]
+    forward_method: Callable[[torch.Tensor, Optional[torch.Tensor]], torch.Tensor]
     num_images: int
     num_features: int
 
@@ -61,11 +61,17 @@ class FID(Metric):
         f_pair = _FIDPair(self.meta.num_features, self.meta.device)
 
         for batch in tqdm(dataloader, desc="Calculating"):
+            labels = None
             if isinstance(batch, list):
+                labels = batch[1]
                 batch = batch[0]
 
             real_images = batch.to(self.meta.device)
-            fake_images = self.meta.forward_method(real_images)
+
+            if labels is not None:
+                labels = labels.to(self.meta.device)
+
+            fake_images = self.meta.forward_method(real_images, labels)
 
             if self.meta.transform is not None:
                 real_images = self.meta.transform(real_images)
