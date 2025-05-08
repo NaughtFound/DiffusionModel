@@ -1,15 +1,21 @@
-from typing import Callable
+from typing import Callable, Optional
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from torch.nn.functional import adaptive_avg_pool2d
-from scipy import linalg
+import scipy.linalg
+import numpy as np
 from .base import Metric, MetricMeta
 
 
 class FIDMeta(MetricMeta):
     inception: nn.Module
+    transform: Optional[Callable[[torch.Tensor], torch.Tensor]]
     forward_method: Callable[[torch.Tensor], torch.Tensor]
+
+    def __init__(self):
+        super().__init__()
+
+        self.transform = None
 
 
 class FID(Metric):
@@ -26,22 +32,24 @@ class FID(Metric):
         list_ff = []
 
         for batch in dataloader:
+            if isinstance(batch, list):
+                batch = batch[0]
+
             real_images = batch.to(self.meta.device)
             fake_images = self.meta.forward_method(real_images)
 
-            rf = self.meta.inception(real_images)[0]
-            ff = self.meta.inception(fake_images)[0]
+            if self.meta.transform is not None:
+                real_images = self.meta.transform(real_images)
+                fake_images = self.meta.transform(fake_images)
 
-            if rf.size(2) != 1 or rf.size(3) != 1:
-                rf = adaptive_avg_pool2d(rf, output_size=(1, 1))
+            rf = self.meta.inception(real_images)
+            ff = self.meta.inception(fake_images)
 
-            if ff.size(2) != 1 or ff.size(3) != 1:
-                ff = adaptive_avg_pool2d(ff, output_size=(1, 1))
+            if isinstance(rf, list):
+                rf = rf[0]
+                ff = ff[0]
 
-            rf = rf.squeeze(3).squeeze(2)
             list_rf.append(rf)
-
-            ff = ff.squeeze(3).squeeze(2)
             list_ff.append(ff)
 
         list_rf = torch.cat(list_rf, dim=0)
@@ -55,14 +63,44 @@ class FID(Metric):
 
         return r_mu, r_sigma, f_mu, f_sigma
 
+    def _fid_score(
+        self,
+        mu1: torch.Tensor,
+        mu2: torch.Tensor,
+        sigma1: torch.Tensor,
+        sigma2: torch.Tensor,
+        eps: float = 1e-6,
+    ) -> float:
+        mu1, mu2 = mu1.cpu(), mu2.cpu()
+        sigma1, sigma2 = sigma1.cpu(), sigma2.cpu()
+
+        diff = mu1 - mu2
+
+        covmean, _ = scipy.linalg.sqrtm(sigma1.mm(sigma2), disp=False)
+
+        if np.iscomplexobj(covmean):
+            if not np.allclose(np.diagonal(covmean).imag, 0, atol=1e-3):
+                m = np.max(np.abs(covmean.imag))
+                raise ValueError("Imaginary component {}".format(m))
+            covmean = covmean.real
+
+        tr_covmean = np.trace(covmean)
+
+        if not np.isfinite(covmean).all():
+            tr_covmean = np.sum(
+                np.sqrt(
+                    ((np.diag(sigma1) * eps) * (np.diag(sigma2) * eps)) / (eps * eps)
+                )
+            )
+
+        return float(
+            diff.dot(diff).item()
+            + torch.trace(sigma1)
+            + torch.trace(sigma2)
+            - 2 * tr_covmean
+        )
+
     def calc(self, dataloader: DataLoader):
         r_mu, r_sigma, f_mu, f_sigma = self._calc_features(dataloader)
 
-        cov_prod = linalg.sqrtm((r_sigma @ f_sigma).cpu().numpy())
-        cov_prod = torch.tensor(cov_prod, dtype=torch.float32, device=self.meta.device)
-
-        fid_score = torch.norm(r_mu - f_mu) ** 2 + torch.trace(
-            r_sigma + f_sigma - 2 * cov_prod
-        )
-
-        return fid_score
+        return self._fid_score(mu1=r_mu, mu2=f_mu, sigma1=r_sigma, sigma2=f_sigma)
