@@ -8,12 +8,14 @@ from .base import Metric, MetricMeta
 
 class LPIPSMeta(MetricMeta):
     net_type: Optional[Literal["alex", "vgg"]]
+    transform: Optional[Callable[[torch.Tensor], torch.Tensor]]
     forward_method: Callable[[torch.Tensor], torch.Tensor]
 
     def __init__(self):
         super().__init__()
 
         self.net_type = "alex"
+        self.transform = None
 
 
 class LPIPS(Metric):
@@ -36,6 +38,10 @@ class LPIPS(Metric):
 
             real_images = batch.to(self.meta.device)
             fake_images = self.meta.forward_method(real_images)
+
+            if self.meta.transform is not None:
+                real_images = self.meta.transform(real_images)
+                fake_images = self.meta.transform(fake_images)
 
             score = self.model(real_images, fake_images, normalize=False).squeeze()
             scores.append(score.mean())
