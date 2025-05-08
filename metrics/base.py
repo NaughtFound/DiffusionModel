@@ -15,5 +15,5 @@ class Metric(ABC):
         self.meta = meta
 
     @abstractmethod
-    def calc(self, *args: Any, **kwargs: Any) -> torch.Tensor | float:
+    def calc(self, *args: Any, **kwargs: Any) -> Any:
         pass
