@@ -123,6 +123,7 @@ class FID(Metric):
             - 2 * tr_covmean
         )
 
+    @torch.no_grad()
     def calc(self, dataloader: DataLoader):
         r_pair, f_pair = self._calc_features(dataloader)
 
