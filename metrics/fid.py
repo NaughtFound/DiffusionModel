@@ -99,7 +99,7 @@ class FID(Metric):
         sigma1: torch.Tensor,
         sigma2: torch.Tensor,
         eps: float = 1e-6,
-    ) -> float:
+    ) -> torch.Tensor:
         mu1, mu2 = mu1.cpu(), mu2.cpu()
         sigma1, sigma2 = sigma1.cpu(), sigma2.cpu()
 
@@ -122,7 +122,7 @@ class FID(Metric):
                 )
             )
 
-        return float(
+        return (
             diff.dot(diff).item()
             + torch.trace(sigma1)
             + torch.trace(sigma2)
