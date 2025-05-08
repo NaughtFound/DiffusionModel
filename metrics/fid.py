@@ -4,6 +4,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 import scipy.linalg
 import numpy as np
+from tqdm import tqdm
 from .base import Metric, MetricMeta
 
 
@@ -11,11 +12,41 @@ class FIDMeta(MetricMeta):
     inception: nn.Module
     transform: Optional[Callable[[torch.Tensor], torch.Tensor]]
     forward_method: Callable[[torch.Tensor], torch.Tensor]
+    num_images: int
+    num_features: int
 
     def __init__(self):
         super().__init__()
 
         self.transform = None
+
+
+class _FIDPair:
+    def __init__(self, num_features: int, device: torch.device):
+        self.total = torch.zeros(
+            num_features,
+            dtype=torch.float32,
+            device=device,
+        )
+
+        self.sigma = torch.zeros(
+            (num_features, num_features),
+            dtype=torch.float32,
+            device=device,
+        )
+
+    def update(self, features: torch.Tensor):
+        self.total += features
+        self.sigma += torch.outer(features, features)
+
+    def calc_mean(self, n: int):
+        return self.total / n
+
+    def calc_cov(self, n: int):
+        sub_matrix = torch.outer(self.total, self.total)
+        sub_matrix = sub_matrix / n
+
+        return (self.sigma - sub_matrix) / (n - 1)
 
 
 class FID(Metric):
@@ -25,13 +56,11 @@ class FID(Metric):
         self.meta = meta
 
     @torch.no_grad()
-    def _calc_features(
-        self, dataloader: DataLoader
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        list_rf = []
-        list_ff = []
+    def _calc_features(self, dataloader: DataLoader) -> tuple[_FIDPair, _FIDPair]:
+        r_pair = _FIDPair(self.meta.num_features, self.meta.device)
+        f_pair = _FIDPair(self.meta.num_features, self.meta.device)
 
-        for batch in dataloader:
+        for batch in tqdm(dataloader, desc="Calculating"):
             if isinstance(batch, list):
                 batch = batch[0]
 
@@ -49,19 +78,13 @@ class FID(Metric):
                 rf = rf[0]
                 ff = ff[0]
 
-            list_rf.append(rf)
-            list_ff.append(ff)
+            for f in rf:
+                r_pair.update(f)
 
-        list_rf = torch.cat(list_rf, dim=0)
-        list_ff = torch.cat(list_ff, dim=0)
+            for f in ff:
+                f_pair.update(f)
 
-        r_mu = list_rf.mean(0)
-        r_sigma = list_rf.T.cov()
-
-        f_mu = list_ff.mean(0)
-        f_sigma = list_ff.T.cov()
-
-        return r_mu, r_sigma, f_mu, f_sigma
+        return r_pair, f_pair
 
     def _fid_score(
         self,
@@ -101,6 +124,11 @@ class FID(Metric):
         )
 
     def calc(self, dataloader: DataLoader):
-        r_mu, r_sigma, f_mu, f_sigma = self._calc_features(dataloader)
+        r_pair, f_pair = self._calc_features(dataloader)
 
-        return self._fid_score(mu1=r_mu, mu2=f_mu, sigma1=r_sigma, sigma2=f_sigma)
+        return self._fid_score(
+            mu1=r_pair.calc_mean(self.meta.num_images),
+            mu2=f_pair.calc_mean(self.meta.num_images),
+            sigma1=r_pair.calc_cov(self.meta.num_images),
+            sigma2=f_pair.calc_cov(self.meta.num_images),
+        )
