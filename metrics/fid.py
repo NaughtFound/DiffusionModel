@@ -1,6 +1,7 @@
+from typing import Callable
 import torch
 import torch.nn as nn
-from torch.utils.data import TensorDataset, DataLoader
+from torch.utils.data import DataLoader
 from torch.nn.functional import adaptive_avg_pool2d
 from scipy import linalg
 from .base import Metric, MetricMeta
@@ -8,7 +9,7 @@ from .base import Metric, MetricMeta
 
 class FIDMeta(MetricMeta):
     inception: nn.Module
-    batch_size: int
+    forward_method: Callable[[torch.Tensor], torch.Tensor]
 
 
 class FID(Metric):
@@ -18,32 +19,44 @@ class FID(Metric):
         self.meta = meta
 
     @torch.no_grad()
-    def _calc_features(self, images: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        dataset = TensorDataset(images)
-        dataloader = DataLoader(dataset, self.meta.batch_size)
-
-        features = []
+    def _calc_features(
+        self, dataloader: DataLoader
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        list_rf = []
+        list_ff = []
 
         for batch in dataloader:
-            batch = batch.to(self.meta.device)
-            batch_features = self.meta.inception(batch)[0]
+            real_images = batch.to(self.meta.device)
+            fake_images = self.meta.forward_method(real_images)
 
-            if batch_features.size(2) != 1 or batch_features.size(3) != 1:
-                batch_features = adaptive_avg_pool2d(batch_features, output_size=(1, 1))
+            rf = self.meta.inception(real_images)[0]
+            ff = self.meta.inception(fake_images)[0]
 
-            batch_features = batch_features.squeeze(3).squeeze(2)
-            features.append(batch_features)
+            if rf.size(2) != 1 or rf.size(3) != 1:
+                rf = adaptive_avg_pool2d(rf, output_size=(1, 1))
 
-        features = torch.cat(features, dim=0)
+            if ff.size(2) != 1 or ff.size(3) != 1:
+                ff = adaptive_avg_pool2d(ff, output_size=(1, 1))
 
-        mu = features.mean(0)
-        sigma = features.T.cov()
+            rf = rf.squeeze(3).squeeze(2)
+            list_rf.append(rf)
 
-        return mu, sigma
+            ff = ff.squeeze(3).squeeze(2)
+            list_ff.append(ff)
 
-    def calc(self, real_images: torch.Tensor, fake_images: torch.Tensor):
-        r_mu, r_sigma = self._calc_features(real_images)
-        f_mu, f_sigma = self._calc_features(fake_images)
+        list_rf = torch.cat(list_rf, dim=0)
+        list_ff = torch.cat(list_ff, dim=0)
+
+        r_mu = list_rf.mean(0)
+        r_sigma = list_rf.T.cov()
+
+        f_mu = list_ff.mean(0)
+        f_sigma = list_ff.T.cov()
+
+        return r_mu, r_sigma, f_mu, f_sigma
+
+    def calc(self, dataloader: DataLoader):
+        r_mu, r_sigma, f_mu, f_sigma = self._calc_features(dataloader)
 
         cov_prod = linalg.sqrtm((r_sigma @ f_sigma).cpu().numpy())
         cov_prod = torch.tensor(cov_prod, dtype=torch.float32, device=self.meta.device)
