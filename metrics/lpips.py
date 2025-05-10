@@ -33,15 +33,7 @@ class LPIPS(Metric):
         scores = []
 
         for batch in tqdm(dataloader, desc="Calculating"):
-            labels = None
-            if isinstance(batch, list):
-                labels = batch[1]
-                batch = batch[0]
-
-            real_images = batch.to(self.meta.device)
-
-            if labels is not None:
-                labels = labels.to(self.meta.device)
+            real_images, labels = self._unwind_batch(batch)
 
             fake_images = self.meta.forward_method(real_images, labels)
 
