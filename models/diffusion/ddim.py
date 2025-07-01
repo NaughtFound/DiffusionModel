@@ -45,11 +45,13 @@ class DDIM_Forward(DDPM_Forward):
 
         x_score = x / (s_t**2 + 1).sqrt()
 
-        score_pred = self.s_theta(t, x_score) / s_t
+        eps_theta = self.eps_theta(t, x_score)
+
+        score_pred = eps_theta / s_t
 
         flow = 0.5 * g**2 * score_pred
 
-        return -flow.flatten(1)
+        return flow.flatten(1)
 
     @torch.no_grad()
     def forward(

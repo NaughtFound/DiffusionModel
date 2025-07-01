@@ -78,14 +78,6 @@ class LDM(DDPM):
 
         return self.r_sde(x_t, y, use_sde=use_sde)[-1]
 
-    def predict_noise(
-        self,
-        x_t: torch.Tensor,
-        t: torch.Tensor,
-        y: torch.Tensor,
-    ):
-        return self.f_sde.s_theta(t, x_t, y)
-
     def calc_loss(
         self,
         x_0: torch.Tensor,
@@ -93,7 +85,7 @@ class LDM(DDPM):
         y: torch.Tensor,
     ):
         x_t = self.f_sde.analytical_sample(x_0, t)
-        lambda_t = self.f_sde.analytical_var(x_0, t)
+        lambda_t = self.f_sde.analytical_var(t)
 
         score_pred = self.f_sde.s_theta(t, x_t, y)
         score_true = self.f_sde.analytical_score(x_t, x_0, t)

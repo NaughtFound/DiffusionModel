@@ -40,7 +40,7 @@ class SMLD_Forward(DDPM_Forward):
     def analytical_mean(self, x_0: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         return x_0
 
-    def analytical_var(self, x_0: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+    def analytical_var(self, t: torch.Tensor) -> torch.Tensor:
         return self._sigma(t) ** 2
 
     def f(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:

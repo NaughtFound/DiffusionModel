@@ -54,7 +54,7 @@ class DDPM_Forward(nn.Module):
 
         return mean
 
-    def analytical_var(self, x_0: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+    def analytical_var(self, t: torch.Tensor) -> torch.Tensor:
         int_t = self._indefinite_int(t)
         int_t_0 = self._indefinite_int(self.args.t0)
 
@@ -65,7 +65,7 @@ class DDPM_Forward(nn.Module):
     @torch.no_grad()
     def analytical_sample(self, x_0: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         mean = self.analytical_mean(x_0, t)
-        var = self.analytical_var(x_0, t)
+        var = self.analytical_var(t)
         return mean + torch.randn_like(mean) * fill_tail_dims(var.sqrt(), mean)
 
     @torch.no_grad()
@@ -76,11 +76,18 @@ class DDPM_Forward(nn.Module):
         t: torch.Tensor,
     ) -> torch.Tensor:
         mean = self.analytical_mean(x_0, t)
-        var = self.analytical_var(x_0, t)
+        var = self.analytical_var(t)
         return -(x_t - mean) / fill_tail_dims(var, mean).clamp_min(1e-5)
 
     def s_theta(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         return self.args.eps_theta(x=x, t=t)
+
+    def eps_theta(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+        var = self.analytical_var(t)
+
+        score_pred = self.s_theta(t, x)
+
+        return -score_pred * fill_tail_dims(var.sqrt(), score_pred)
 
     def f(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         return -0.5 * self._beta(t) * x
@@ -194,7 +201,7 @@ class DDPM(Diffusion):
         return self.r_sde(x_t, use_sde=use_sde)[-1]
 
     def predict_noise(self, x_t: torch.Tensor, t: torch.Tensor):
-        return self.f_sde.s_theta(t, x_t)
+        return self.f_sde.eps_theta(t, x_t)
 
     def eval(self):
         self.f_sde.eval()
@@ -206,7 +213,7 @@ class DDPM(Diffusion):
 
     def calc_loss(self, x_0: torch.Tensor, t: torch.Tensor):
         x_t = self.f_sde.analytical_sample(x_0, t)
-        lambda_t = self.f_sde.analytical_var(x_0, t)
+        lambda_t = self.f_sde.analytical_var(t)
 
         score_pred = self.f_sde.s_theta(t, x_t)
         score_true = self.f_sde.analytical_score(x_t, x_0, t)
