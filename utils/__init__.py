@@ -37,17 +37,25 @@ def save_images(
 ):
     images = to_image(x)
 
+    file_path = os.path.join(prefix, "results", run_name, file_name)
+
     if save_as_grid:
         grid = torchvision.utils.make_grid(images, **kwargs)
         grid_numpy = grid.permute(1, 2, 0).cpu().numpy()
 
         image = Image.fromarray(grid_numpy)
-        image.save(os.path.join(prefix, "results", run_name, file_name))
+        image.save(file_path)
     else:
+        file_path, file_ext = os.path.splitext(file_path)
+
+        if not file_ext:
+            file_ext = ".png"
+
+        os.makedirs(file_path, exist_ok=True)
         for i, image_ts in enumerate(images):
             image_numpy = image_ts.permute(1, 2, 0).squeeze().cpu().numpy()
             image = Image.fromarray(image_numpy)
-            image.save(os.path.join(prefix, "results", run_name, f"{i}_{file_name}"))
+            image.save(os.path.join(file_path, f"{i}{file_ext}"))
 
 
 def save_state_dict(
