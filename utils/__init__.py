@@ -32,15 +32,22 @@ def save_images(
     prefix: str,
     run_name: str,
     file_name: str,
+    save_as_grid: bool = True,
     **kwargs,
 ):
     images = to_image(x)
 
-    grid = torchvision.utils.make_grid(images, **kwargs)
-    grid_numpy = grid.permute(1, 2, 0).cpu().numpy()
+    if save_as_grid:
+        grid = torchvision.utils.make_grid(images, **kwargs)
+        grid_numpy = grid.permute(1, 2, 0).cpu().numpy()
 
-    image = Image.fromarray(grid_numpy)
-    image.save(os.path.join(prefix, "results", run_name, file_name))
+        image = Image.fromarray(grid_numpy)
+        image.save(os.path.join(prefix, "results", run_name, file_name))
+    else:
+        for i, image_ts in enumerate(images):
+            image_numpy = image_ts.permute(1, 2, 0).squeeze().cpu().numpy()
+            image = Image.fromarray(image_numpy)
+            image.save(os.path.join(prefix, "results", run_name, f"{i}_{file_name}"))
 
 
 def save_state_dict(
