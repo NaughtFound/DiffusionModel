@@ -85,7 +85,7 @@ class UNet(nn.Module):
 
         return t
 
-    def _encode_decode(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+    def _encode(self, x: torch.Tensor, t: torch.Tensor) -> list[torch.Tensor]:
         x = self.inc(x)
         x_l = [x]
 
@@ -96,6 +96,9 @@ class UNet(nn.Module):
 
         x_l[-1] = self.bottle_neck(x_l[-1])
 
+        return x_l
+
+    def _decode(self, x_l: list[torch.Tensor], t: torch.Tensor) -> torch.Tensor:
         x = x_l[-1]
         x_l = x_l[::-1]
 
@@ -105,7 +108,21 @@ class UNet(nn.Module):
 
         return self.out(x)
 
-    def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+    def _encode_decode(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+        x_l = self._encode(x, t)
+        x = self._decode(x_l, t)
+
+        return x
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        t: torch.Tensor,
+        only_encode: bool = False,
+    ) -> torch.Tensor:
         t = self._time_encoding(t)
+
+        if only_encode:
+            return self._encode(x, t)
 
         return self._encode_decode(x, t)
