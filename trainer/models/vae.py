@@ -52,15 +52,18 @@ class VAETrainer(GradientTrainer):
         return vae, optimizer, last_epoch
 
     def calc_var(self, dataloader: DataLoader) -> torch.Tensor:
-        mean = 0.0
-        mean_sq = 0.0
+        sm = 0.0
+        sm_sq = 0.0
+        total = 0
         for batch in tqdm(dataloader, desc="Calculating variance of input dataset"):
-            data = batch[0]
+            total += len(batch)
+            sm += batch.sum(0)
+            sm_sq += (batch**2).sum(0)
 
-            mean = data.mean()
-            mean_sq = (data**2).mean()
+        mean = sm / total
+        mean_sq = sm_sq / total
 
-        return torch.sqrt(mean_sq - mean**2)
+        return mean_sq - mean**2
 
     def pre_train(self, dataloader: DataLoader, **kwargs):
         self.var = self.calc_var(dataloader)
@@ -84,7 +87,7 @@ class VAETrainer(GradientTrainer):
         args = self.args
         images = batch[0].to(args.device)
 
-        logging.info(f"Sampling for epoch {epoch+1}")
+        logging.info(f"Sampling for epoch {epoch + 1}")
         model.eval()
         sampled_images = model(images)
         model.train()
@@ -92,16 +95,16 @@ class VAETrainer(GradientTrainer):
             sampled_images,
             args.prefix,
             args.run_name,
-            f"{epoch+1}.jpg",
+            f"{epoch + 1}.jpg",
         )
-        logging.info(f"Saving results for epoch {epoch+1}")
+        logging.info(f"Saving results for epoch {epoch + 1}")
         utils.save_state_dict(
             model,
             optimizer,
             epoch,
             args.prefix,
             args.run_name,
-            f"ckpt-{epoch+1}.pt",
+            f"ckpt-{epoch + 1}.pt",
         )
 
     def post_train(self):
