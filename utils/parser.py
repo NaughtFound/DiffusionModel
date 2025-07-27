@@ -12,21 +12,18 @@ class ConfigParser:
     local: Optional[ModuleType]
 
     def __init__(self, config_path: Union[str, Path]):
-        try:
-            with open(config_path, "r") as file:
-                self.config = yaml.safe_load(file)
-        except FileNotFoundError:
-            print(f"Error: The file '{config_path}' was not found.")
-        except yaml.YAMLError as e:
-            print(f"Error parsing YAML file: {e}")
+        root, _ = os.path.split(config_path)
+
+        with open(config_path, "r") as file:
+            self.config = yaml.safe_load(file)
 
         if "local" in self.config:
             local_path = self.config.pop("local")
-            self.local = self._load_python_module(local_path)
+            self.local = self._load_python_module(os.path.join(root, local_path))
         else:
             self.local = None
 
-    def _load_python_module(path: str) -> ModuleType:
+    def _load_python_module(self, path: str) -> ModuleType:
         if not os.path.isfile(path):
             raise FileNotFoundError(f"Local Python file not found: {path}")
 
@@ -39,7 +36,7 @@ class ConfigParser:
         loader.exec_module(module)
         return module
 
-    def _load_object(module_path: str, object_name: str) -> Any:
+    def _load_object(self, module_path: str, object_name: str) -> Any:
         try:
             module = importlib.import_module(module_path)
             if not hasattr(module, object_name):
