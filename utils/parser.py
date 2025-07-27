@@ -50,7 +50,10 @@ class ConfigParser:
         except ModuleNotFoundError as e:
             raise ImportError(f"Could not import module '{module_path}': {e}") from e
 
-    def _resolve_entry(self, entry: dict[str, Any]) -> Any:
+    def _resolve_entry(self, entry: Any) -> Any:
+        if not isinstance(entry, dict):
+            return entry
+
         module_path = entry["module"]
         symbol_name = entry["source"]
         args = entry.get("args", {})
@@ -62,7 +65,10 @@ class ConfigParser:
         else:
             obj = self._load_object(module_path, symbol_name)
 
-        return obj(**args) if callable(obj) else obj
+        for k in args:
+            args[k] = self._resolve_entry(args[k])
+
+        return obj(**args) if callable(obj) and args else obj
 
     def parse(self) -> dict[str, Any]:
         res = {}
