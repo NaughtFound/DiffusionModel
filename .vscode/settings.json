@@ -11,6 +11,7 @@
     "lerp",
     "levelname",
     "lpips",
+    "MNIST",
     "Multihead",
     "optim",
     "Quantizer",

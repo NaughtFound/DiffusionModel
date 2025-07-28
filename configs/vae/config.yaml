@@ -1,0 +1,16 @@
+vae:
+  module: trainer.models.vae
+  source: VAETrainer
+  args:
+    model_type: vq
+    img_size: 32
+    in_channels: 1
+    batch_size: 1024
+    shuffle: True
+    save_freq: 5
+    dataset_path: ./data
+    target_transform:
+    download: True
+    loader:
+      module: loaders
+      source: MNISTLoader

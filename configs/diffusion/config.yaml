@@ -1,4 +1,3 @@
-local: main.py
 ddpm:
   module: trainer.models.ddpm
   source: DDPMTrainer
@@ -15,7 +14,7 @@ ddpm:
     target_transform:
     download: True
     loader:
-      module: local
+      module: loaders
       source: MNISTLoader
 cfg:
   module: trainer.models.cfg
@@ -34,7 +33,7 @@ cfg:
     target_transform:
     download: True
     loader:
-      module: local
+      module: loaders
       source: MNISTLoader
 ldm:
   module: trainer.models.ldm
@@ -54,22 +53,6 @@ ldm:
     target_transform:
     download: True
     loader:
-      module: local
+      module: loaders
       source: MNISTLoader
     vae_checkpoint: ckpt-100.pt
-vae:
-  module: trainer.models.vae
-  source: VAETrainer
-  args:
-    model_type: vq
-    img_size: 32
-    in_channels: 1
-    batch_size: 1024
-    shuffle: True
-    save_freq: 5
-    dataset_path: ./data
-    target_transform:
-    download: True
-    loader:
-      module: local
-      source: MNISTLoader
