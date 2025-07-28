@@ -53,7 +53,7 @@ class ConfigParser:
 
         module_path = entry["module"]
         symbol_name = entry["source"]
-        args = entry.get("args", {})
+        should_call = entry.get("call", True)
 
         obj = None
 
@@ -62,10 +62,16 @@ class ConfigParser:
         else:
             obj = self._load_object(module_path, symbol_name)
 
-        for k in args:
-            args[k] = self._resolve_entry(args[k])
+        if callable(obj) and should_call:
+            args = entry.get("args", {})
 
-        return obj(**args) if callable(obj) and args else obj
+            if isinstance(args, dict):
+                for k in args:
+                    args[k] = self._resolve_entry(args[k])
+
+            return obj(**args)
+
+        return obj
 
     def parse(self) -> dict[str, Any]:
         res = {}

@@ -14,3 +14,4 @@ vae:
     loader:
       module: loaders
       source: MNISTLoader
+      call: False

@@ -16,6 +16,7 @@ ddpm:
     loader:
       module: loaders
       source: MNISTLoader
+      call: False
 cfg:
   module: trainer.models.cfg
   source: CFGTrainer
@@ -35,6 +36,7 @@ cfg:
     loader:
       module: loaders
       source: MNISTLoader
+      call: False
 ldm:
   module: trainer.models.ldm
   source: LDMTrainer
@@ -55,4 +57,5 @@ ldm:
     loader:
       module: loaders
       source: MNISTLoader
+      call: False
     vae_checkpoint: ckpt-100.pt
