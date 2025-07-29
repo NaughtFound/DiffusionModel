@@ -26,6 +26,14 @@ class DatasetLoader(ABC):
 
         self.args = args
 
+    @classmethod
+    def from_kwargs(cls, **kwargs):
+        args = Namespace(**kwargs)
+
+        loader = cls(args)
+
+        return loader
+
     @abstractmethod
     def get_dataloader_configs(self) -> dict[ConfigKey, DataloaderConfig]:
         pass

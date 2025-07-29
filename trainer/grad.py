@@ -69,7 +69,7 @@ class GradientTrainer(Trainer):
             )
 
         for epoch in range(last_epoch + 1, args.epochs):
-            logging.info(f"Starting epoch {epoch+1}")
+            logging.info(f"Starting epoch {epoch + 1}")
 
             train_loss = 0
 
@@ -131,17 +131,13 @@ class GradientTrainer(Trainer):
 
                 model.train()
 
-            logging.info(f"Test Mean Loss: {test_loss/len_test_data}")
+            logging.info(f"Test Mean Loss: {test_loss / len_test_data}")
 
         self.post_train()
 
     @classmethod
     def create_for_inference(cls, **kwargs):
-        trainer = cls()
-        args = trainer.args
-
-        for k in kwargs:
-            setattr(args, k, kwargs[k])
+        trainer = cls(**kwargs)
 
         model = trainer.load_last_checkpoint()[0]
         model.eval()
