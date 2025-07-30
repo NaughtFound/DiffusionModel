@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Sequence
 import torch
 from torch import optim
 from torch.utils.data import DataLoader
@@ -56,6 +56,9 @@ class VAETrainer(GradientTrainer):
         sm_sq = 0.0
         total = 0
         for batch in tqdm(dataloader, desc="Calculating variance of input dataset"):
+            if isinstance(batch, Sequence):
+                batch = batch[0]
+
             total += len(batch)
             sm += batch.sum(0)
             sm_sq += (batch**2).sum(0)
@@ -71,7 +74,10 @@ class VAETrainer(GradientTrainer):
     def train_step(self, model: VAE, batch: Any) -> torch.Tensor:
         device = self.args.device
 
-        images = batch[0].to(device)
+        if isinstance(batch, Sequence):
+            batch = batch[0]
+
+        images = batch.to(device)
 
         loss = model.calc_loss(images, self.var)
 
@@ -85,11 +91,15 @@ class VAETrainer(GradientTrainer):
         batch: Any,
     ):
         args = self.args
-        images = batch[0].to(args.device)
+
+        if isinstance(batch, Sequence):
+            batch = batch[0]
+
+        batch = batch.to(args.device)
 
         logging.info(f"Sampling for epoch {epoch + 1}")
         model.eval()
-        sampled_images = model(images)
+        sampled_images = model(batch)
         model.train()
         utils.save_images(
             sampled_images,
