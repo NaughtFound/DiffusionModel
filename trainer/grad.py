@@ -1,6 +1,6 @@
 import os
 from abc import abstractmethod
-from typing import Any
+from typing import Any, Optional, Union
 import argparse
 import torch
 import torch.nn as nn
@@ -15,7 +15,13 @@ from .base import Trainer
 
 class GradientTrainer(Trainer):
     @abstractmethod
-    def load_last_checkpoint(self) -> tuple[nn.Module, optim.Optimizer, int]:
+    def load_last_checkpoint(
+        self,
+    ) -> tuple[
+        nn.Module,
+        Union[optim.Optimizer, dict[str, optim.Optimizer]],
+        int,
+    ]:
         pass
 
     @abstractmethod
@@ -23,14 +29,14 @@ class GradientTrainer(Trainer):
         pass
 
     @abstractmethod
-    def train_step(self, model: nn.Module, batch: Any) -> torch.Tensor:
+    def train_step(self, model: nn.Module, batch: Any, optim_name: str) -> torch.Tensor:
         pass
 
     @abstractmethod
     def save_step(
         self,
         model: nn.Module,
-        optimizer: optim.Optimizer,
+        optimizer: Union[optim.Optimizer, dict[str, optim.Optimizer]],
         epoch: int,
         batch: Any,
     ) -> torch.Tensor:
@@ -39,6 +45,36 @@ class GradientTrainer(Trainer):
     @abstractmethod
     def pre_inference(self, model: nn.Module):
         pass
+
+    def calc_loss(
+        self,
+        dataloader: DataLoader,
+        model: nn.Module,
+        optimizer_dict: dict[str, optim.Optimizer],
+        step_optimizer: bool = True,
+        desc: Optional[str] = None,
+    ) -> dict[str, float]:
+        loss_dict = {}
+
+        for batch in tqdm(dataloader, desc=desc):
+            for optim_name, optimizer in optimizer_dict.items():
+                loss = self.train_step(
+                    model=model,
+                    batch=batch,
+                    optim_name=optim_name,
+                )
+
+                if optim_name not in loss_dict:
+                    loss_dict[optim_name] = 0
+
+                loss_dict[optim_name] += loss.item()
+
+                if step_optimizer:
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+
+        return loss_dict
 
     def train(self):
         args = self.args
@@ -51,6 +87,13 @@ class GradientTrainer(Trainer):
         test_dataloader = dataloaders.get(ConfigKey.test)
 
         model, optimizer, last_epoch = self.load_last_checkpoint()
+
+        if isinstance(optimizer, optim.Optimizer):
+            optimizer_dict = {
+                optimizer.__class__.__name__: optimizer,
+            }
+        else:
+            optimizer_dict = optimizer
 
         model.train()
 
@@ -71,67 +114,67 @@ class GradientTrainer(Trainer):
         for epoch in range(last_epoch + 1, args.epochs):
             logging.info(f"Starting epoch {epoch + 1}")
 
-            train_loss = 0
-
-            for batch in tqdm(
-                train_dataloader,
-                desc=f"Training [{epoch + 1}/{args.epochs}]",
-            ):
-                loss = self.train_step(model=model, batch=batch)
-                train_loss += loss.item()
-
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-
-            train_logger.add_scalar(
-                "Loss",
-                train_loss / len_train_data,
-                global_step=epoch,
+            loss_dict = self.calc_loss(
+                dataloader=train_dataloader,
+                model=model,
+                optimizer_dict=optimizer_dict,
+                step_optimizer=True,
+                desc=f"Training [{epoch + 1}/{self.args.epochs}]",
             )
+
+            for loss_name, loss in loss_dict.items():
+                train_logger.add_scalar(
+                    f"Loss {loss_name}",
+                    loss / len_train_data,
+                    global_step=epoch,
+                )
 
             if (epoch + 1) % args.save_freq == 0:
                 self.save_step(
                     model=model,
                     optimizer=optimizer,
                     epoch=epoch,
-                    batch=batch,
+                    batch=next(iter(train_dataloader)),
                 )
 
             if valid_dataloader is None:
                 continue
 
-            valid_loss = 0
-
             with torch.no_grad():
                 model.eval()
-                for batch in tqdm(
-                    valid_dataloader,
+                loss_dict = self.calc_loss(
+                    dataloader=valid_dataloader,
+                    model=model,
+                    optimizer_dict=optimizer_dict,
+                    step_optimizer=False,
                     desc=f"Validation [{epoch + 1}/{args.epochs}]",
-                ):
-                    loss = self.train_step(model=model, batch=batch)
-                    valid_loss += loss.item()
-
-                valid_logger.add_scalar(
-                    "Loss",
-                    valid_loss / len_valid_data,
-                    global_step=epoch,
                 )
                 model.train()
 
+                for loss_name, loss in loss_dict.items():
+                    valid_logger.add_scalar(
+                        f"Loss {loss_name}",
+                        loss / len_valid_data,
+                        global_step=epoch,
+                    )
+
         if test_dataloader is not None:
             len_test_data = len(test_dataloader)
-            test_loss = 0
 
             with torch.no_grad():
                 model.eval()
-                for batch in tqdm(test_dataloader, desc="Testing"):
-                    loss = self.train_step(model=model, batch=batch)
-                    test_loss += loss.item()
-
+                loss_dict = self.calc_loss(
+                    dataloader=test_dataloader,
+                    model=model,
+                    optimizer_dict=optimizer_dict,
+                    step_optimizer=False,
+                    desc="Testing",
+                )
                 model.train()
 
-            logging.info(f"Test Mean Loss: {test_loss / len_test_data}")
+                for loss_name, loss in loss_dict.items():
+                    mean_test_loss = loss / len_test_data
+                    logging.info(f"Test Mean Loss for {loss_name}: {mean_test_loss}")
 
         self.post_train()
 

@@ -60,16 +60,19 @@ def save_images(
 
 def save_state_dict(
     model: Union[nn.Module, dict[str, nn.Module]],
-    optimizer: optim.Optimizer,
+    optimizer: Union[optim.Optimizer, dict[str, optim.Optimizer]],
     epoch: int,
     prefix: str,
     run_name: str,
     file_name: str,
 ):
-    state_dict = {
-        "optimizer": optimizer.state_dict(),
-        "epoch": epoch,
-    }
+    state_dict = {"epoch": epoch}
+
+    if isinstance(optimizer, optim.Optimizer):
+        state_dict["optimizer"] = optimizer.state_dict()
+    else:
+        for optim_name in optimizer:
+            state_dict[optim_name] = optimizer[optim_name].state_dict()
 
     if isinstance(model, nn.Module):
         state_dict["model"] = model.state_dict()
@@ -85,7 +88,7 @@ def save_state_dict(
 
 def load_state_dict(
     model: Union[nn.Module, dict[str, nn.Module]],
-    optimizer: optim.Optimizer,
+    optimizer: Union[optim.Optimizer, dict[str, optim.Optimizer]],
     prefix: str,
     run_name: str,
     file_name: str,
@@ -95,13 +98,18 @@ def load_state_dict(
     if os.path.exists(path):
         state_dict = torch.load(path, weights_only=True, map_location=device)
 
+        if isinstance(optimizer, optim.Optimizer):
+            optimizer.load_state_dict(state_dict.get("optimizer"))
+        else:
+            for optim_name in optimizer:
+                optimizer[optim_name].load_state_dict(state_dict.get(optim_name))
+
         if isinstance(model, nn.Module):
             model.load_state_dict(state_dict.get("model"))
         else:
             for model_name in model:
                 model[model_name].load_state_dict(state_dict.get(model_name))
 
-        optimizer.load_state_dict(state_dict.get("optimizer"))
         return state_dict.get("epoch")
 
     return -1
