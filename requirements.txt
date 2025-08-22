@@ -1,1 +1,2 @@
+diffusers[torch]==0.35.1
 lpips==0.1.4
