@@ -34,9 +34,9 @@ class VectorQuantizer(nn.Module):
         return min_encoding_indices, min_encodings, perplexity
 
     def _calc_loss(self, z: torch.Tensor, z_q: torch.Tensor) -> torch.Tensor:
-        loss = torch.mean((z_q.detach() - z) ** 2) + self.beta * torch.mean(
-            (z_q - z.detach()) ** 2
-        )
+        q_latent_loss = torch.mean((z_q - z.detach()) ** 2)
+        e_latent_loss = torch.mean((z_q.detach() - z) ** 2)
+        loss = q_latent_loss + self.beta * e_latent_loss
 
         return loss
 
