@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 class VectorQuantizer(nn.Module):
     def __init__(self, n_emb: int, emb_dim: int, beta: float):
-        super(VectorQuantizer, self).__init__()
+        super().__init__()
         self.n_emb = n_emb
         self.emb_dim = emb_dim
         self.beta = beta
@@ -69,7 +69,7 @@ class ResidualLayer(nn.Module):
         out_channels: int,
         res_h_dim: int,
     ):
-        super(ResidualLayer, self).__init__()
+        super().__init__()
         self.res_block = nn.Sequential(
             nn.ReLU(True),
             nn.Conv2d(
@@ -90,8 +90,23 @@ class ResidualLayer(nn.Module):
             ),
         )
 
-    def forward(self, x):
+        self.skip_proj = None
+
+        if in_channels != out_channels:
+            self.skip_proj = nn.Conv2d(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                kernel_size=1,
+                stride=1,
+                bias=False,
+            )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if self.skip_proj is not None:
+            x = self.skip_proj(x)
+
         x = x + self.res_block(x)
+
         return x
 
 
@@ -102,22 +117,35 @@ class ResidualStack(nn.Module):
         out_channels: int,
         res_h_dim: int,
         n_res_layers: int,
+        hidden_dim: int = None,
     ):
-        super(ResidualStack, self).__init__()
+        super().__init__()
         self.n_res_layers = n_res_layers
-        self.stack = nn.ModuleList(
-            [
+        self.stack = nn.Sequential()
+
+        if hidden_dim is None:
+            hidden_dim = out_channels
+
+        for _ in range(n_res_layers - 1):
+            self.stack.append(
                 ResidualLayer(
                     in_channels=in_channels,
-                    out_channels=out_channels,
+                    out_channels=hidden_dim,
                     res_h_dim=res_h_dim,
                 )
-            ]
-            * n_res_layers
+            )
+            in_channels = hidden_dim
+
+        self.stack.append(
+            ResidualLayer(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                res_h_dim=res_h_dim,
+            )
         )
 
-    def forward(self, x):
-        for layer in self.stack:
-            x = layer(x)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.stack(x)
         x = F.relu(x)
+
         return x
