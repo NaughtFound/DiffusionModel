@@ -32,6 +32,7 @@ class VAE_KL_Params:
         self.embedding_dim = 4
         self.pretrained_model_name_or_path = None
         self.lpips_model_path = None
+        self.disc_start = 50001
         self.log_var_init = 0.0
         self.kl_weight = 1.0
         self.pixel_loss_weight = 1.0
