@@ -40,20 +40,13 @@ class LDMTrainer(DDPMTrainer):
     def create_vae_model(self) -> VAE:
         args = self.args
 
-        vae_trainer = vae.VAETrainer(
-            device=args.device,
-            run_name=args.vae_run_name,
-            model_type=args.vae_model_type,
-            checkpoint=args.vae_checkpoint,
-            in_channels=args.in_channels,
-            img_size=args.img_size,
-            hidden_dim=args.vae_hidden_dim,
-            embedding_dim=args.vae_embedding_dim,
-            n_embeddings=args.vae_n_embeddings,
-            res_h_dim=args.vae_res_h_dim,
-            n_res_layers=args.vae_n_res_layers,
-            beta=args.vae_beta,
-        )
+        vae_args = {}
+
+        for key, value in args.__dict__.items():
+            if key.startswith("vae_"):
+                vae_args[key.split("vae_")[1]] = value
+
+        vae_trainer = vae.VAETrainer(**vae_args)
 
         vae_model = vae_trainer.load_last_checkpoint()[0]
 
@@ -139,6 +132,7 @@ class LDMTrainer(DDPMTrainer):
     @staticmethod
     def create_default_args():
         args = super(LDMTrainer, LDMTrainer).create_default_args()
+        vae_args = vae.VAETrainer.create_default_args()
 
         args.run_name = "LDM"
         args.model_type = "sde"
@@ -146,11 +140,14 @@ class LDMTrainer(DDPMTrainer):
         args.use_vae = False
         args.latent_size = args.img_size // 4
 
+        utils.add_prefixed_namespace(vae_args, args, "vae_")
+
         return args
 
     @staticmethod
     def get_arg_parser():
         parser = super(LDMTrainer, LDMTrainer).get_arg_parser()
+        vae_parser = vae.VAETrainer.get_arg_parser()
 
         d_args = LDMTrainer.create_default_args()
 
@@ -158,5 +155,7 @@ class LDMTrainer(DDPMTrainer):
 
         parser.add_argument("--use_vae", type=bool, default=d_args.use_vae)
         parser.add_argument("--latent_size", type=int, default=d_args.latent_size)
+
+        utils.add_prefixed_arguments(vae_parser, parser, "vae_")
 
         return parser

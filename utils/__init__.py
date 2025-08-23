@@ -1,4 +1,5 @@
 import os
+import argparse
 import torch
 from torch import nn, optim
 import torchvision
@@ -124,3 +125,40 @@ def setup_logging(run_name: str, prefix: str = "."):
 
 def fill_tail_dims(x: torch.Tensor, x_like: torch.Tensor):
     return x[(...,) + (None,) * (x_like.dim() - x.dim())]
+
+
+def add_prefixed_arguments(
+    src_parser: argparse.ArgumentParser,
+    dst_parser: argparse.ArgumentParser,
+    prefix: str,
+):
+    for action in src_parser._actions:
+        if not action.option_strings:
+            continue
+
+        new_opts = []
+        for opt in action.option_strings:
+            if opt.startswith("--"):
+                new_opts.append("--" + prefix + opt[2:])
+            elif opt.startswith("-"):
+                new_opts.append("-" + prefix + opt[1:])
+            else:
+                new_opts.append(prefix + opt)
+
+        dst_parser.add_argument(
+            *new_opts,
+            help=action.help,
+            nargs=action.nargs,
+            default=action.default,
+            type=action.type,
+            dest=f"{prefix}{action.dest}",
+        )
+
+
+def add_prefixed_namespace(
+    src_args: argparse.Namespace,
+    dst_args: argparse.Namespace,
+    prefix: str,
+):
+    for key, value in src_args.__dict__.items():
+        setattr(dst_args, f"{prefix}{key}", value)
