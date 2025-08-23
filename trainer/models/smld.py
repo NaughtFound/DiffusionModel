@@ -17,8 +17,10 @@ class SMLDTrainer(DDPMTrainer):
 
             return SMLD(params)
 
-    def create_default_args(self):
-        args = super().create_default_args()
+    @staticmethod
+    def create_default_args():
+        args = super(SMLDTrainer, SMLDTrainer).create_default_args()
+
         args.run_name = "SMLD"
         args.model_type = "sde"
         args.sigma_min = 0.02
@@ -26,10 +28,11 @@ class SMLDTrainer(DDPMTrainer):
 
         return args
 
-    def get_arg_parser(self):
-        parser = super().get_arg_parser()
+    @staticmethod
+    def get_arg_parser():
+        parser = super(SMLDTrainer, SMLDTrainer).get_arg_parser()
 
-        d_args = self.create_default_args()
+        d_args = SMLDTrainer.create_default_args()
 
         parser.add_argument("--sigma_min", type=float, default=d_args.sigma_min)
         parser.add_argument("--sigma_max", type=float, default=d_args.sigma_max)

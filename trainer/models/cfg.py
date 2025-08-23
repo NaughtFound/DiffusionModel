@@ -55,7 +55,7 @@ class CFGTrainer(DDPMTrainer):
     ):
         args = self.args
 
-        logging.info(f"Sampling for epoch {epoch+1}")
+        logging.info(f"Sampling for epoch {epoch + 1}")
         self.diffusion.eval()
         labels = torch.arange(args.num_classes).long().to(args.device)
         sampled_images = self.diffusion.sample(
@@ -64,12 +64,12 @@ class CFGTrainer(DDPMTrainer):
             cfg_scale=args.cfg_scale,
         )
         self.diffusion.train()
-        logging.info(f"Saving results for epoch {epoch+1}")
+        logging.info(f"Saving results for epoch {epoch + 1}")
         utils.save_images(
             sampled_images,
             args.prefix,
             args.run_name,
-            f"{epoch+1}.jpg",
+            f"{epoch + 1}.jpg",
         )
         utils.save_state_dict(
             model,
@@ -77,14 +77,16 @@ class CFGTrainer(DDPMTrainer):
             epoch,
             args.prefix,
             args.run_name,
-            f"ckpt-{epoch+1}.pt",
+            f"ckpt-{epoch + 1}.pt",
         )
 
     def post_train(self):
         pass
 
-    def create_default_args(self):
-        args = super().create_default_args()
+    @staticmethod
+    def create_default_args():
+        args = super(CFGTrainer, CFGTrainer).create_default_args()
+
         args.run_name = "CFG"
         args.model_type = "default"
         args.alpha = 0.1
@@ -92,10 +94,11 @@ class CFGTrainer(DDPMTrainer):
 
         return args
 
-    def get_arg_parser(self):
-        parser = super().get_arg_parser()
+    @staticmethod
+    def get_arg_parser():
+        parser = super(CFGTrainer, CFGTrainer).get_arg_parser()
 
-        d_args = self.create_default_args()
+        d_args = CFGTrainer.create_default_args()
 
         parser.add_argument("--alpha", type=float, default=d_args.alpha)
         parser.add_argument("--cfg_scale", type=float, default=d_args.cfg_scale)

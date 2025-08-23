@@ -189,7 +189,8 @@ class GradientTrainer(Trainer):
 
         return trainer
 
-    def create_default_args(self):
+    @staticmethod
+    def create_default_args():
         args = argparse.Namespace()
         args.prefix = "."
         args.run_name = ""
@@ -202,10 +203,11 @@ class GradientTrainer(Trainer):
 
         return args
 
-    def get_arg_parser(self):
+    @staticmethod
+    def get_arg_parser():
         parser = argparse.ArgumentParser()
 
-        d_args = self.create_default_args()
+        d_args = GradientTrainer.create_default_args()
 
         parser.add_argument("--prefix", type=str, default=d_args.prefix)
         parser.add_argument("--run_name", type=str, default=d_args.run_name)

@@ -25,20 +25,35 @@ class LDMTrainer(DDPMTrainer):
             params.tau_theta = tau_theta
             params.beta_min = args.beta_min
             params.beta_max = args.beta_max
-            params.input_size = (args.z_channels, args.img_size, args.img_size)
+
+            if args.use_vae:
+                params.input_size = (
+                    args.vae_hidden_dim,
+                    args.latent_size,
+                    args.latent_size,
+                )
+            else:
+                params.input_size = (args.in_channels, args.img_size, args.img_size)
 
             return LDM(params)
 
     def create_vae_model(self) -> VAE:
         args = self.args
 
-        vae_trainer = vae.VAETrainer()
-
-        vae_args = vae_trainer.args
-        vae_args.checkpoint = args.vae_checkpoint
-        vae_args.device = args.device
-        vae_args.in_channels = args.in_channels
-        vae_args.img_size = args.img_size
+        vae_trainer = vae.VAETrainer(
+            device=args.device,
+            run_name=args.vae_run_name,
+            model_type=args.vae_model_type,
+            checkpoint=args.vae_checkpoint,
+            in_channels=args.in_channels,
+            img_size=args.img_size,
+            hidden_dim=args.vae_hidden_dim,
+            embedding_dim=args.vae_embedding_dim,
+            n_embeddings=args.vae_n_embeddings,
+            res_h_dim=args.vae_res_h_dim,
+            n_res_layers=args.vae_n_res_layers,
+            beta=args.vae_beta,
+        )
 
         vae_model = vae_trainer.load_last_checkpoint()[0]
 
@@ -47,10 +62,12 @@ class LDMTrainer(DDPMTrainer):
     def create_model(self):
         args = self.args
 
-        eps_theta = ConditionalUNet(
-            in_channels=args.z_channels,
-            out_channels=args.z_channels,
-        )
+        channels = args.in_channels
+
+        if args.use_vae:
+            channels = args.vae_embedding_dim
+
+        eps_theta = ConditionalUNet(in_channels=channels, out_channels=channels)
 
         tau_theta = nn.Embedding(args.num_classes, eps_theta.emb_dim)
 
@@ -86,7 +103,7 @@ class LDMTrainer(DDPMTrainer):
     ):
         args = self.args
 
-        logging.info(f"Sampling for epoch {epoch+1}")
+        logging.info(f"Sampling for epoch {epoch + 1}")
         self.diffusion.eval()
         labels = torch.arange(args.num_classes).long().to(args.device)
         sampled_images = self.diffusion.sample(
@@ -97,12 +114,12 @@ class LDMTrainer(DDPMTrainer):
 
         decoded_images = self.vae.decode(sampled_images)
 
-        logging.info(f"Saving results for epoch {epoch+1}")
+        logging.info(f"Saving results for epoch {epoch + 1}")
         utils.save_images(
             decoded_images,
             args.prefix,
             args.run_name,
-            f"{epoch+1}.jpg",
+            f"{epoch + 1}.jpg",
         )
         utils.save_state_dict(
             model,
@@ -110,7 +127,7 @@ class LDMTrainer(DDPMTrainer):
             epoch,
             args.prefix,
             args.run_name,
-            f"ckpt-{epoch+1}.pt",
+            f"ckpt-{epoch + 1}.pt",
         )
 
     def pre_inference(self, model: nn.Module, **kwargs):
@@ -119,22 +136,27 @@ class LDMTrainer(DDPMTrainer):
         self.diffusion.eval()
         self.vae.eval()
 
-    def create_default_args(self):
-        args = super().create_default_args()
+    @staticmethod
+    def create_default_args():
+        args = super(LDMTrainer, LDMTrainer).create_default_args()
+
         args.run_name = "LDM"
         args.model_type = "sde"
-        args.z_channels = 32
-        args.vae_checkpoint = None
+
+        args.use_vae = False
+        args.latent_size = args.img_size // 4
 
         return args
 
-    def get_arg_parser(self):
-        parser = super().get_arg_parser()
+    @staticmethod
+    def get_arg_parser():
+        parser = super(LDMTrainer, LDMTrainer).get_arg_parser()
 
-        d_args = self.create_default_args()
+        d_args = LDMTrainer.create_default_args()
 
-        parser.add_argument("--z_channels", type=int, default=d_args.z_channels)
-        parser.add_argument("--vae_checkpoint", type=str, default=d_args.vae_checkpoint)
         parser.add_argument("--num_classes", type=int, required=True)
+
+        parser.add_argument("--use_vae", type=bool, default=d_args.use_vae)
+        parser.add_argument("--latent_size", type=int, default=d_args.latent_size)
 
         return parser

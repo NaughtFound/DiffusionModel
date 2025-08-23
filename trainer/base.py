@@ -72,10 +72,12 @@ class Trainer(ABC):
     def pre_inference(self, *args: Any, **kwargs: Any):
         pass
 
+    @staticmethod
     @abstractmethod
-    def get_arg_parser(self) -> ArgumentParser:
+    def get_arg_parser() -> ArgumentParser:
         pass
 
+    @staticmethod
     @abstractmethod
-    def create_default_args(self) -> Namespace:
+    def create_default_args() -> Namespace:
         pass

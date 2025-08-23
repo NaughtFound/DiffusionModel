@@ -9,7 +9,7 @@ from .modules import LPIPSWithDiscriminator
 class VAE_KL_Params:
     in_channels: int
     out_channels: int
-    embedding_dim: int
+    hidden_dim: int
     pretrained_model_name_or_path: Optional[str]
     lpips_model_path: Optional[str]
     disc_start: int
@@ -29,7 +29,7 @@ class VAE_KL_Params:
 
         self.in_channels = 3
         self.out_channels = 3
-        self.embedding_dim = 4
+        self.hidden_dim = 4
         self.pretrained_model_name_or_path = None
         self.lpips_model_path = None
         self.disc_start = 50001
@@ -57,7 +57,7 @@ class VAE_KL(VAE):
             self.vae = AutoencoderKL(
                 in_channels=args.in_channels,
                 out_channels=args.out_channels,
-                latent_channels=args.embedding_dim,
+                latent_channels=args.hidden_dim,
             )
 
         self.loss = LPIPSWithDiscriminator(

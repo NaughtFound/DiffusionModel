@@ -78,16 +78,16 @@ class DDPMTrainer(GradientTrainer):
         args = self.args
         n = len(batch[0])
 
-        logging.info(f"Sampling for epoch {epoch+1}")
+        logging.info(f"Sampling for epoch {epoch + 1}")
         self.diffusion.eval()
         sampled_images = self.diffusion.sample(n=n)
         self.diffusion.train()
-        logging.info(f"Saving results for epoch {epoch+1}")
+        logging.info(f"Saving results for epoch {epoch + 1}")
         utils.save_images(
             sampled_images,
             args.prefix,
             args.run_name,
-            f"{epoch+1}.jpg",
+            f"{epoch + 1}.jpg",
         )
         utils.save_state_dict(
             model,
@@ -95,7 +95,7 @@ class DDPMTrainer(GradientTrainer):
             epoch,
             args.prefix,
             args.run_name,
-            f"ckpt-{epoch+1}.pt",
+            f"ckpt-{epoch + 1}.pt",
         )
 
     def post_train(self):
@@ -106,8 +106,10 @@ class DDPMTrainer(GradientTrainer):
 
         self.diffusion.eval()
 
-    def create_default_args(self):
-        args = super().create_default_args()
+    @staticmethod
+    def create_default_args():
+        args = super(DDPMTrainer, DDPMTrainer).create_default_args()
+
         args.run_name = "DDPM_unconditional"
         args.model_type = "default"
         args.img_size = 64
@@ -118,10 +120,11 @@ class DDPMTrainer(GradientTrainer):
 
         return args
 
-    def get_arg_parser(self):
-        parser = super().get_arg_parser()
+    @staticmethod
+    def get_arg_parser():
+        parser = super(DDPMTrainer, DDPMTrainer).get_arg_parser()
 
-        d_args = self.create_default_args()
+        d_args = DDPMTrainer.create_default_args()
 
         parser.add_argument("--img_size", type=int, default=d_args.img_size)
         parser.add_argument("--in_channels", type=int, default=d_args.in_channels)

@@ -41,7 +41,7 @@ class VAETrainer(GradientTrainer):
             params = VAE_KL_Params(args.device)
             params.in_channels = args.in_channels
             params.out_channels = args.in_channels
-            params.embedding_dim = args.embedding_dim
+            params.hidden_dim = args.hidden_dim
             params.pretrained_model_name_or_path = args.pretrained_model_name_or_path
             params.lpips_model_path = args.lpips_model_path
             params.disc_start = args.disc_start
@@ -190,8 +190,10 @@ class VAETrainer(GradientTrainer):
         self.vae = model
         self.vae.eval()
 
-    def create_default_args(self):
-        args = super().create_default_args()
+    @staticmethod
+    def create_default_args():
+        args = super(VAETrainer, VAETrainer).create_default_args()
+
         args.run_name = "VAE-VQ"
         args.model_type = "vq"
         args.in_channels = 3
@@ -218,10 +220,11 @@ class VAETrainer(GradientTrainer):
 
         return args
 
-    def get_arg_parser(self):
-        parser = super().get_arg_parser()
+    @staticmethod
+    def get_arg_parser():
+        parser = super(VAETrainer, VAETrainer).get_arg_parser()
 
-        d_args = self.create_default_args()
+        d_args = VAETrainer.create_default_args()
 
         parser.add_argument("--in_channels", type=int, default=d_args.in_channels)
         parser.add_argument("--img_size", type=int, default=d_args.img_size)

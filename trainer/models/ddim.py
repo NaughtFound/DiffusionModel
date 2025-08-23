@@ -19,8 +19,10 @@ class DDIMTrainer(DDPMTrainer):
 
             return DDIM(params)
 
-    def create_default_args(self):
-        args = super().create_default_args()
+    @staticmethod
+    def create_default_args():
+        args = super(DDIMTrainer, DDIMTrainer).create_default_args()
+
         args.run_name = "DDIM"
         args.model_type = "sde"
         args.sigma_min = 0.02
@@ -28,10 +30,11 @@ class DDIMTrainer(DDPMTrainer):
 
         return args
 
-    def get_arg_parser(self):
-        parser = super().get_arg_parser()
+    @staticmethod
+    def get_arg_parser():
+        parser = super(DDIMTrainer, DDIMTrainer).get_arg_parser()
 
-        d_args = self.create_default_args()
+        d_args = DDIMTrainer.create_default_args()
 
         parser.add_argument("--sigma_min", type=float, default=d_args.sigma_min)
         parser.add_argument("--sigma_max", type=float, default=d_args.sigma_max)
