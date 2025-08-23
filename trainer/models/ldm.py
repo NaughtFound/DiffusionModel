@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 import torch
 from torch import optim, nn
 import logging
@@ -37,8 +37,11 @@ class LDMTrainer(DDPMTrainer):
 
             return LDM(params)
 
-    def create_vae_model(self) -> VAE:
+    def create_vae_model(self) -> Optional[VAE]:
         args = self.args
+
+        if not args.use_vae:
+            return None
 
         vae_args = {}
 
@@ -49,6 +52,7 @@ class LDMTrainer(DDPMTrainer):
         vae_trainer = vae.VAETrainer(**vae_args)
 
         vae_model = vae_trainer.load_last_checkpoint()[0]
+        vae_model.eval()
 
         return vae_model
 
@@ -71,7 +75,6 @@ class LDMTrainer(DDPMTrainer):
         self.diffusion.train()
 
         self.vae = self.create_vae_model()
-        self.vae.eval()
 
     def train_step(self, batch: Any, **kwargs) -> torch.Tensor:
         device = self.args.device
@@ -79,11 +82,12 @@ class LDMTrainer(DDPMTrainer):
         images = batch[0].to(device)
         labels = batch[1].to(device)
 
-        encoded_images = self.vae.encode(images)
+        if isinstance(self.vae, VAE):
+            images = self.vae.encode(images)
 
-        t = self.diffusion.t(encoded_images.shape[0])
+        t = self.diffusion.t(images.shape[0])
 
-        loss = self.diffusion.calc_loss(encoded_images, t, labels)
+        loss = self.diffusion.calc_loss(images, t, labels)
 
         return loss
 

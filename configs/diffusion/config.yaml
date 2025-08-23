@@ -44,7 +44,6 @@ ldm:
     model_type: sde
     img_size: 32
     in_channels: 1
-    z_channels: 32
     batch_size: 256
     shuffle: True
     save_freq: 50
@@ -58,4 +57,4 @@ ldm:
       module: loaders
       source: MNISTLoader
       call: False
-    vae_checkpoint: ckpt-100.pt
+    use_vae: False
