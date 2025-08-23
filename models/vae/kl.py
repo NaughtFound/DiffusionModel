@@ -76,7 +76,7 @@ class VAE_KL(VAE):
         )
 
     def encode(self, x: torch.Tensor, return_dist: bool = False):
-        enc_dist, _ = self.vae.encode(x, return_dict=False)
+        enc_dist = self.vae.encode(x, return_dict=False)[0]
 
         if not isinstance(enc_dist, DiagonalGaussianDistribution):
             raise TypeError("encoded x is not DiagonalGaussianDistribution")
@@ -87,7 +87,7 @@ class VAE_KL(VAE):
         return enc_dist.sample()
 
     def decode(self, z: torch.Tensor):
-        dec_tensor, _ = self.vae.decode(z, return_dict=False)
+        dec_tensor = self.vae.decode(z, return_dict=False)[0]
 
         if not isinstance(dec_tensor, torch.Tensor):
             raise TypeError("decoded z is not Tensor")
@@ -108,7 +108,7 @@ class VAE_KL(VAE):
         last_layer = self.vae.decoder.conv_out.weight
 
         z_dist = self.encode(x, return_dist=True)
-        x_hat = self.decode()
+        x_hat = self.decode(z_dist.sample())
 
         loss = self.loss(
             inputs=x,

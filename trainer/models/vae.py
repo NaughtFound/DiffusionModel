@@ -18,7 +18,7 @@ class VAETrainer(GradientTrainer):
         self.global_step = 0
         self.optimizer_idx = {
             "AdamW_vae": 0,
-            "AdamW_desc": 1,
+            "AdamW_disc": 1,
         }
 
     def create_model(self) -> VAE:
@@ -75,7 +75,7 @@ class VAETrainer(GradientTrainer):
 
             optimizer = {
                 "AdamW_vae": optim.Adam(vae_params, lr=args.lr),
-                "AdamW_desc": optim.Adam(
+                "AdamW_disc": optim.Adam(
                     vae.loss.discriminator.parameters(),
                     lr=args.lr,
                 ),
