@@ -6,9 +6,8 @@ from . import modules as m
 
 class VAE_VQ_Params:
     in_channels: int
-    img_size: int
+    latent_channels: int
     hidden_dim: int
-    embedding_dim: int
     n_embeddings: int
     res_h_dim: int
     n_res_layers: int
@@ -18,9 +17,8 @@ class VAE_VQ_Params:
         self.device = device
 
         self.in_channels = 3
-        self.img_size = 64
+        self.latent_channels = 64
         self.hidden_dim = 128
-        self.embedding_dim = 64
         self.n_embeddings = 512
         self.res_h_dim = 32
         self.n_res_layers = 2
@@ -136,17 +134,17 @@ class VAE_VQ(VAE):
         )
         self.pre_quantizer = nn.Conv2d(
             in_channels=self.args.hidden_dim,
-            out_channels=self.args.embedding_dim,
+            out_channels=self.args.latent_channels,
             kernel_size=1,
             stride=1,
         )
         self.quantizer = m.VectorQuantizer(
             n_emb=self.args.n_embeddings,
-            emb_dim=self.args.embedding_dim,
+            emb_dim=self.args.latent_channels,
             beta=self.args.beta,
         )
         self.decoder = VAE_VQ_Decoder(
-            in_channels=self.args.embedding_dim,
+            in_channels=self.args.latent_channels,
             hidden_channels=self.args.hidden_dim,
             out_channels=self.args.in_channels,
             n_res_layers=self.args.n_res_layers,

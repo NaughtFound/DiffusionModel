@@ -27,9 +27,8 @@ class VAETrainer(GradientTrainer):
         if args.model_type == "vq":
             params = VAE_VQ_Params(args.device)
             params.in_channels = args.in_channels
-            params.img_size = args.img_size
             params.hidden_dim = args.hidden_dim
-            params.embedding_dim = args.embedding_dim
+            params.latent_channels = args.latent_channels
             params.n_embeddings = args.n_embeddings
             params.res_h_dim = args.res_h_dim
             params.n_res_layers = args.n_res_layers
@@ -41,7 +40,7 @@ class VAETrainer(GradientTrainer):
             params = VAE_KL_Params(args.device)
             params.in_channels = args.in_channels
             params.out_channels = args.in_channels
-            params.hidden_dim = args.hidden_dim
+            params.latent_channels = args.latent_channels
             params.pretrained_model_name_or_path = args.pretrained_model_name_or_path
             params.lpips_model_path = args.lpips_model_path
             params.disc_start = args.disc_start
@@ -197,9 +196,8 @@ class VAETrainer(GradientTrainer):
         args.run_name = "VAE-VQ"
         args.model_type = "vq"
         args.in_channels = 3
-        args.img_size = 54
         args.hidden_dim = 64
-        args.embedding_dim = 32
+        args.latent_channels = 32
         args.n_embeddings = 256
         args.res_h_dim = 16
         args.n_res_layers = 1
@@ -227,9 +225,12 @@ class VAETrainer(GradientTrainer):
         d_args = VAETrainer.create_default_args()
 
         parser.add_argument("--in_channels", type=int, default=d_args.in_channels)
-        parser.add_argument("--img_size", type=int, default=d_args.img_size)
         parser.add_argument("--hidden_dim", type=int, default=d_args.hidden_dim)
-        parser.add_argument("--embedding_dim", type=int, default=d_args.embedding_dim)
+        parser.add_argument(
+            "--latent_channels",
+            type=int,
+            default=d_args.latent_channels,
+        )
         parser.add_argument("--n_embeddings", type=int, default=d_args.n_embeddings)
         parser.add_argument("--res_h_dim", type=int, default=d_args.res_h_dim)
         parser.add_argument("--n_res_layers", type=int, default=d_args.n_res_layers)

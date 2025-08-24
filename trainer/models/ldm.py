@@ -29,7 +29,7 @@ class LDMTrainer(DDPMTrainer):
 
             if args.use_vae:
                 params.input_size = (
-                    args.vae_hidden_dim,
+                    args.vae_latent_channels,
                     args.latent_size,
                     args.latent_size,
                 )
@@ -61,9 +61,11 @@ class LDMTrainer(DDPMTrainer):
         args = self.args
 
         channels = args.in_channels
+        img_size = args.img_size
 
         if args.use_vae:
-            channels = args.vae_embedding_dim
+            channels = args.vae_latent_channels
+            img_size = args.latent_size
 
         if args.eps_theta_type == "unet":
             eps_theta = ConditionalUNet(in_channels=channels, out_channels=channels)
@@ -72,7 +74,11 @@ class LDMTrainer(DDPMTrainer):
             return nn.ModuleDict({"eps_theta": eps_theta, "tau_theta": tau_theta})
 
         elif args.eps_theta_type == "dit":
-            eps_theta = DiT(in_channels=channels, learn_sigma=False)
+            eps_theta = DiT(
+                in_channels=channels,
+                input_size=img_size,
+                learn_sigma=False,
+            )
             tau_theta = nn.Embedding(args.num_classes, eps_theta.hidden_size)
 
             return nn.ModuleDict({"eps_theta": eps_theta, "tau_theta": tau_theta})
@@ -153,7 +159,7 @@ class LDMTrainer(DDPMTrainer):
         args.eps_theta_type = "unet"
 
         args.use_vae = False
-        args.latent_size = args.img_size // 4
+        args.latent_size = args.img_size
 
         utils.add_prefixed_namespace(vae_args, args, "vae_")
 
