@@ -7,9 +7,9 @@ from . import modules as m
 class DiT(nn.Module):
     def __init__(
         self,
+        in_channels: int = 4,
         input_size: int = 32,
         patch_size: int = 2,
-        in_channels: int = 4,
         hidden_size: int = 1152,
         depth: int = 28,
         num_heads: int = 16,
@@ -18,11 +18,12 @@ class DiT(nn.Module):
     ):
         super().__init__()
 
-        self.learn_sigma = learn_sigma
         self.in_channels = in_channels
-        self.out_channels = in_channels * 2 if learn_sigma else in_channels
         self.patch_size = patch_size
+        self.out_channels = in_channels * 2 if learn_sigma else in_channels
+        self.hidden_size = hidden_size
         self.num_heads = num_heads
+        self.learn_sigma = learn_sigma
 
         self.x_embed = PatchEmbed(
             img_size=input_size,
@@ -77,8 +78,6 @@ class DiT(nn.Module):
         w = self.x_embed.proj.weight.data
         nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
         nn.init.constant_(self.x_embed.proj.bias, 0)
-
-        nn.init.normal_(self.y_embed.embedding_table.weight, std=0.02)
 
         nn.init.normal_(self.t_embed.mlp[0].weight, std=0.02)
         nn.init.normal_(self.t_embed.mlp[2].weight, std=0.02)

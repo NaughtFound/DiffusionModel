@@ -1,9 +1,10 @@
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 import torch
 from torch import optim, nn
 import logging
 import utils
 from models.unet.conditional import ConditionalUNet
+from models.vit.dit import DiT
 from models.diffusion.base import Diffusion
 from models.diffusion.ldm import LDM_Params, LDM
 from models.vae.base import VAE
@@ -64,11 +65,20 @@ class LDMTrainer(DDPMTrainer):
         if args.use_vae:
             channels = args.vae_embedding_dim
 
-        eps_theta = ConditionalUNet(in_channels=channels, out_channels=channels)
+        if args.eps_theta_type == "unet":
+            eps_theta = ConditionalUNet(in_channels=channels, out_channels=channels)
+            tau_theta = nn.Embedding(args.num_classes, eps_theta.emb_dim)
 
-        tau_theta = nn.Embedding(args.num_classes, eps_theta.emb_dim)
+            return nn.ModuleDict({"eps_theta": eps_theta, "tau_theta": tau_theta})
 
-        return nn.ModuleDict({"eps_theta": eps_theta, "tau_theta": tau_theta})
+        elif args.eps_theta_type == "dit":
+            eps_theta = DiT(in_channels=channels, learn_sigma=False)
+            tau_theta = nn.Embedding(args.num_classes, eps_theta.hidden_size)
+
+            return nn.ModuleDict({"eps_theta": eps_theta, "tau_theta": tau_theta})
+
+        else:
+            raise ValueError(f"{args.eps_theta_type} is not valid for `eps_theta_type`")
 
     def pre_train(self, model: nn.ModuleDict, **kwargs):
         self.diffusion = self.create_diffusion_model(**model)
@@ -140,6 +150,7 @@ class LDMTrainer(DDPMTrainer):
 
         args.run_name = "LDM"
         args.model_type = "sde"
+        args.eps_theta_type = "unet"
 
         args.use_vae = False
         args.latent_size = args.img_size // 4
@@ -156,6 +167,11 @@ class LDMTrainer(DDPMTrainer):
         d_args = LDMTrainer.create_default_args()
 
         parser.add_argument("--num_classes", type=int, required=True)
+        parser.add_argument(
+            "--eps_theta_type",
+            type=Literal["unet", "dit"],
+            default=d_args.eps_theta_type,
+        )
 
         parser.add_argument("--use_vae", type=bool, default=d_args.use_vae)
         parser.add_argument("--latent_size", type=int, default=d_args.latent_size)
