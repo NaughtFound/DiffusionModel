@@ -1,3 +1,4 @@
+from typing import Optional
 import torch
 import torch.nn as nn
 from utils import fill_tail_dims
@@ -6,7 +7,12 @@ from .ddpm import DDPM, DDPM_Params, DDPM_Forward, DDPM_Reverse
 
 
 class LDM_Params(DDPM_Params):
-    tau_theta: nn.Module
+    tau_theta: Optional[nn.Module]
+
+    def __init__(self, device: torch.device):
+        super().__init__(device)
+
+        self.tau_theta = None
 
 
 class LDM_Forward(DDPM_Forward):
@@ -22,7 +28,8 @@ class LDM_Forward(DDPM_Forward):
         x: torch.Tensor,
         y: torch.Tensor,
     ) -> torch.Tensor:
-        y = self.args.tau_theta(y)
+        if isinstance(self.args.tau_theta, nn.Module):
+            y = self.args.tau_theta(y)
 
         return self.args.eps_theta(x=x, t=t, y=y)
 
@@ -96,10 +103,10 @@ class LDM(DDPM):
 
     def train(self, with_tau: bool = True):
         super().train()
-        if with_tau:
+        if with_tau and isinstance(self.args.tau_theta, nn.Module):
             self.args.tau_theta.train()
 
     def eval(self, with_tau: bool = True):
         super().eval()
-        if with_tau:
+        if with_tau and isinstance(self.args.tau_theta, nn.Module):
             self.args.tau_theta.eval()
