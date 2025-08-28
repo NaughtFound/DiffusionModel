@@ -185,11 +185,7 @@ class DDPM(Diffusion):
         r = torch.rand((n,), device=self.args.device)
         return self.args.t0 + (self.args.t1 - self.args.t0) * r
 
-    def forward(
-        self,
-        x_0: torch.Tensor,
-        t: torch.Tensor,
-    ):
+    def forward(self, x_0: torch.Tensor, t: torch.Tensor):
         return self.f_sde(x_0, t)
 
     def reverse(self, x_t: torch.Tensor, use_sde: bool = True):

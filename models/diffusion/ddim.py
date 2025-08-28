@@ -1,3 +1,4 @@
+from typing import Optional
 import torch
 import torchdiffeq
 from utils import fill_tail_dims
@@ -57,7 +58,7 @@ class DDIM_Forward(DDPM_Forward):
     def forward(
         self,
         x_0: torch.Tensor,
-        t: float = None,
+        t: Optional[float] = None,
         dt: float = 1e-2,
     ) -> torch.Tensor:
         if t is None:
@@ -109,11 +110,8 @@ class DDIM(DDPM):
         self.f_sde = DDIM_Forward(args)
         self.r_sde = DDIM_Reverse(self.f_sde, args)
 
-    def forward(self, x_0: torch.Tensor, t: float = None):
-        x_t = self.f_sde(x_0, t=t)
-        return x_t[-1]
+    def forward(self, x_0: torch.Tensor, t: Optional[float] = None):
+        return super().forward(x_0, t)
 
     def reverse(self, x_t: torch.Tensor):
-        x_0 = self.r_sde(x_t, use_sde=False)
-
-        return x_0[-1]
+        return super().reverse(x_t, use_sde=False)
