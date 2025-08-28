@@ -1,5 +1,4 @@
 import torch
-from utils import fill_tail_dims
 from utils.args import with_kwargs, KWargs
 from .ddpm import DDPM, DDPM_Params, DDPM_Forward, DDPM_Reverse
 
@@ -26,10 +25,10 @@ class CFG_Forward(DDPM_Forward):
         if cfg_scale == 1:
             return self.args.eps_theta(x=x, t=t, labels=labels)
 
-        unconditional_noise = self.args.eps_theta(x=x, t=t, labels=None)
-        conditional_noise = self.args.eps_theta(x=x, t=t, labels=labels)
+        u_s_theta = self.args.eps_theta(x=x, t=t, labels=None)
+        c_s_theta = self.args.eps_theta(x=x, t=t, labels=labels)
 
-        return torch.lerp(unconditional_noise, conditional_noise, cfg_scale)
+        return torch.lerp(u_s_theta, c_s_theta, cfg_scale)
 
 
 class CFG_Reverse(DDPM_Reverse):
@@ -38,23 +37,6 @@ class CFG_Reverse(DDPM_Reverse):
 
         self.forward_sde = forward_sde
         self.args = args
-
-    @torch.no_grad()
-    def forward(
-        self,
-        x_t: torch.Tensor,
-        labels: torch.Tensor,
-        cfg_scale: float,
-        dt: float = 1e-2,
-        use_sde: bool = True,
-    ) -> torch.Tensor:
-        KWargs().insert(self.forward_sde.s_theta, labels=labels, cfg_scale=cfg_scale)
-
-        x_0 = super().forward(x_t, dt, use_sde)
-
-        KWargs().drop(self.forward_sde.s_theta)
-
-        return x_0
 
 
 class CFG(DDPM):
@@ -66,6 +48,21 @@ class CFG(DDPM):
         self.f_sde = CFG_Forward(args)
         self.r_sde = CFG_Reverse(self.f_sde, args)
 
+    def predict_noise(
+        self,
+        x_t: torch.Tensor,
+        labels: torch.Tensor,
+        t: torch.Tensor,
+        cfg_scale: float,
+    ):
+        KWargs().insert(self.f_sde.s_theta, labels=labels, cfg_scale=cfg_scale)
+
+        noise = super().predict_noise(x_t, t)
+
+        KWargs().drop(self.f_sde.s_theta)
+
+        return noise
+
     def reverse(
         self,
         x_t: torch.Tensor,
@@ -73,7 +70,13 @@ class CFG(DDPM):
         cfg_scale: float,
         use_sde: bool = True,
     ):
-        return self.r_sde(x_t, labels, cfg_scale, use_sde=use_sde)[-1]
+        KWargs().insert(self.f_sde.s_theta, labels=labels, cfg_scale=cfg_scale)
+
+        x_0 = super().reverse(x_t, use_sde)
+
+        KWargs().drop(self.f_sde.s_theta)
+
+        return x_0
 
     def sample(
         self,
@@ -82,9 +85,13 @@ class CFG(DDPM):
         cfg_scale: float,
         use_sde: bool = True,
     ):
-        x_t = torch.randn(size=(n, *self.args.input_size), device=self.args.device)
+        KWargs().insert(self.f_sde.s_theta, labels=labels, cfg_scale=cfg_scale)
 
-        return self.r_sde(x_t, labels, cfg_scale, use_sde=use_sde)[-1]
+        x_0 = super().sample(n, use_sde)
+
+        KWargs().drop(self.f_sde.s_theta)
+
+        return x_0
 
     def calc_loss(
         self,
@@ -93,12 +100,10 @@ class CFG(DDPM):
         labels: torch.Tensor,
         cfg_scale: float,
     ):
-        x_t = self.f_sde.analytical_sample(x_0, t)
-        lambda_t = self.f_sde.analytical_var(t)
+        KWargs().insert(self.f_sde.s_theta, labels=labels, cfg_scale=cfg_scale)
 
-        score_pred = self.f_sde.s_theta(t, x_t, labels, cfg_scale)
-        score_true = self.f_sde.analytical_score(x_t, x_0, t)
+        loss = super().calc_loss(x_0, t)
 
-        loss = fill_tail_dims(lambda_t, x_t) * ((score_pred - score_true) ** 2)
+        KWargs().drop(self.f_sde.s_theta)
 
-        return loss.mean()
+        return loss
