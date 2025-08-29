@@ -2,9 +2,10 @@ import torch
 import torch.nn as nn
 from timm.models.vision_transformer import PatchEmbed
 from . import modules as m
+from models.modules import HasCFGBackBone
 
 
-class DiT(nn.Module):
+class DiT(nn.Module, HasCFGBackBone):
     def __init__(
         self,
         in_channels: int = 4,
@@ -116,25 +117,3 @@ class DiT(nn.Module):
         x = self.unpatchify(x)
 
         return x
-
-    def forward_with_cfg(
-        self,
-        x: torch.Tensor,
-        t: torch.Tensor,
-        y: torch.Tensor,
-        cfg_scale: float,
-    ):
-        half = x[: len(x) // 2]
-        combined = torch.cat([half, half], dim=0)
-
-        model_out = self.__call__(combined, t, y)
-
-        eps, rest = model_out[:, : self.in_channels], model_out[:, self.in_channels :]
-
-        cond_eps, uncond_eps = torch.split(eps, len(eps) // 2, dim=0)
-
-        half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
-
-        eps = torch.cat([half_eps, half_eps], dim=0)
-
-        return torch.cat([eps, rest], dim=1)
