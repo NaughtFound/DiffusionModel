@@ -1,15 +1,18 @@
 import torch
 from utils.args import with_kwargs, KWargs
 from .ddpm import DDPM, DDPM_Params, DDPM_Forward, DDPM_Reverse
+from models.modules import HasCFGBackBone
 
 
 class CFG_Params(DDPM_Params):
-    pass
+    eps_theta: HasCFGBackBone
 
 
 class CFG_Forward(DDPM_Forward):
     def __init__(self, args: CFG_Params):
         super().__init__(args)
+
+        self.args = args
 
     @with_kwargs
     def s_theta(
@@ -19,16 +22,19 @@ class CFG_Forward(DDPM_Forward):
         labels: torch.Tensor,
         cfg_scale: float,
     ) -> torch.Tensor:
-        if cfg_scale == 0:
-            return super().s_theta(t, x)
-
-        if cfg_scale == 1:
-            return self.args.eps_theta(x=x, t=t, labels=labels)
-
-        u_s_theta = self.args.eps_theta(x=x, t=t, labels=None)
-        c_s_theta = self.args.eps_theta(x=x, t=t, labels=labels)
-
-        return torch.lerp(u_s_theta, c_s_theta, cfg_scale)
+        if self.training:
+            return self.args.eps_theta(
+                x=x,
+                t=t,
+                y=labels,
+            )
+        else:
+            return self.args.eps_theta.forward_with_cfg(
+                x=x,
+                t=t,
+                y=labels,
+                cfg_scale=cfg_scale,
+            )
 
 
 class CFG_Reverse(DDPM_Reverse):

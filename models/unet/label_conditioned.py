@@ -1,10 +1,12 @@
+from typing import Optional
 import torch
 from torch import nn
 
+from models.modules import HasCFGBackBone
 from .base import UNet
 
 
-class LabelConditionedUNet(UNet):
+class LabelConditionedUNet(UNet, HasCFGBackBone):
     def __init__(
         self,
         num_classes: int,
@@ -30,16 +32,42 @@ class LabelConditionedUNet(UNet):
         self,
         x: torch.Tensor,
         t: torch.Tensor,
-        labels: torch.Tensor = None,
+        y: Optional[torch.Tensor] = None,
         only_encode: bool = False,
+        embed_y: bool = True,
     ) -> torch.Tensor:
         t = self._time_encoding(t)
 
-        if labels is not None:
-            t_batch = t.expand(len(x), -1)
-            t = t_batch + self.label_emb(labels)
+        t = t.expand(len(x), -1)
+
+        if embed_y and y is not None:
+            y = self.label_emb(y)
+
+        if y is not None:
+            t = t + y
 
         if only_encode:
             return self._encode(x, t)
 
         return self._encode_decode(x, t)
+
+    def forward_with_cfg(
+        self,
+        x: torch.Tensor,
+        t: torch.Tensor,
+        y: torch.Tensor,
+        cfg_scale: float,
+        y_null: Optional[torch.Tensor] = None,
+        only_encode: bool = False,
+    ):
+        y_emb = self.label_emb(y)
+
+        return super().forward_with_cfg(
+            x,
+            t,
+            y_emb,
+            cfg_scale,
+            y_null,
+            only_encode=only_encode,
+            embed_y=False,
+        )
