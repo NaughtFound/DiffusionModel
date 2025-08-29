@@ -2,13 +2,14 @@ ddpm:
   module: trainer.models.ddpm
   source: DDPMTrainer
   args:
+    prefix: notebooks
     model_type: sde
     img_size: 32
     in_channels: 1
     batch_size: 64
     shuffle: True
     save_freq: 50
-    dataset_path: ./data
+    dataset_path: ./notebooks/data
     beta_min: 0.1
     beta_max: 1
     target_transform:
@@ -21,13 +22,14 @@ cfg:
   module: trainer.models.cfg
   source: CFGTrainer
   args:
+    prefix: args.prefix
     model_type: sde
     img_size: 32
     in_channels: 1
-    batch_size: 50
+    batch_size: 64
     shuffle: True
     save_freq: 50
-    dataset_path: ./data
+    dataset_path: args.dataset_path
     num_classes: 10
     beta_min: 0.1
     beta_max: 1
@@ -41,13 +43,14 @@ ldm:
   module: trainer.models.ldm
   source: LDMTrainer
   args:
+    prefix: args.prefix
     model_type: sde
     img_size: 32
     in_channels: 1
     batch_size: 256
     shuffle: True
     save_freq: 50
-    dataset_path: ./data
+    dataset_path: args.dataset_path
     beta_min: 0.1
     beta_max: 1
     num_classes: 10

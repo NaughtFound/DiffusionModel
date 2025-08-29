@@ -201,10 +201,12 @@ class DDPM(Diffusion):
 
     def eval(self):
         self.f_sde.eval()
+        self.r_sde.eval()
         self.args.eps_theta.eval()
 
     def train(self):
         self.f_sde.train()
+        self.r_sde.train()
         self.args.eps_theta.train()
 
     def calc_loss(self, x_0: torch.Tensor, t: torch.Tensor):
