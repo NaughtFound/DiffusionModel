@@ -1,3 +1,4 @@
+from typing import Optional
 import torch
 import torch.nn as nn
 from timm.models.vision_transformer import PatchEmbed
@@ -104,16 +105,22 @@ class DiT(nn.Module, HasCFGBackBone):
 
         return imgs
 
-    def forward(self, x: torch.Tensor, t: torch.Tensor, y: torch.Tensor):
+    def forward(
+        self,
+        x: torch.Tensor,
+        t: torch.Tensor,
+        y: Optional[torch.Tensor] = None,
+    ):
         x = self.x_embed(x) + self.pos_embed
         t = self.t_embed(t)
 
-        c = t + y
+        if y is not None:
+            t = t + y
 
         for block in self.blocks:
-            x = block(x, c)
+            x = block(x, t)
 
-        x = self.final_layer(x, c)
+        x = self.final_layer(x, t)
         x = self.unpatchify(x)
 
         return x

@@ -65,10 +65,13 @@ class ConditionalUNet(UNet, HasCFGBackBone):
         self,
         x: torch.Tensor,
         t: torch.Tensor,
-        y: torch.Tensor,
+        y: Optional[torch.Tensor] = None,
         only_encode: bool = False,
     ) -> torch.Tensor:
         t = self._time_encoding(t)
+
+        if y is None:
+            y = torch.zeros((len(x), self.emb_dim), device=x.device)
 
         if only_encode:
             return self._encode(x, t, y)
