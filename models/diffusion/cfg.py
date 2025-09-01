@@ -6,6 +6,12 @@ from models.modules import HasCFGBackBone
 
 class CFG_Params(DDPM_Params):
     eps_theta: HasCFGBackBone
+    fast_cfg: bool
+
+    def __init__(self, device: torch.device):
+        super().__init__(device)
+
+        self.fast_cfg = True
 
 
 class CFG_Forward(DDPM_Forward):
@@ -34,6 +40,7 @@ class CFG_Forward(DDPM_Forward):
                 t=t,
                 y=labels,
                 cfg_scale=cfg_scale,
+                fast_cfg=self.args.fast_cfg,
             )
 
 

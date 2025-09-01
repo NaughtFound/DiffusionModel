@@ -20,6 +20,7 @@ class CFGTrainer(DDPMTrainer):
             params.beta_min = args.beta_min
             params.beta_max = args.beta_max
             params.input_size = (args.in_channels, args.img_size, args.img_size)
+            params.fast_cfg = args.fast_cfg
 
             return CFG(params)
 
@@ -90,6 +91,7 @@ class CFGTrainer(DDPMTrainer):
         args.run_name = "CFG"
         args.model_type = "default"
         args.alpha = 0.1
+        args.fast_cfg = True
         args.cfg_scale = 0.1
 
         return args
@@ -101,6 +103,7 @@ class CFGTrainer(DDPMTrainer):
         d_args = CFGTrainer.create_default_args()
 
         parser.add_argument("--alpha", type=float, default=d_args.alpha)
+        parser.add_argument("--fast_cfg", type=bool, default=d_args.fast_cfg)
         parser.add_argument("--cfg_scale", type=float, default=d_args.cfg_scale)
         parser.add_argument("--num_classes", type=int, required=True)
 

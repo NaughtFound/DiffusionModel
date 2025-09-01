@@ -59,6 +59,7 @@ class LabelConditionedUNet(UNet, HasCFGBackBone):
         cfg_scale: float,
         y_null: Optional[torch.Tensor] = None,
         only_encode: bool = False,
+        fast_cfg: bool = True,
     ):
         y_emb = self.label_emb(y)
 
@@ -68,6 +69,7 @@ class LabelConditionedUNet(UNet, HasCFGBackBone):
             y_emb,
             cfg_scale,
             y_null,
+            fast_cfg=fast_cfg,
             only_encode=only_encode,
             embed_y=False,
         )

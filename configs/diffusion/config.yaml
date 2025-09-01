@@ -39,6 +39,7 @@ cfg:
       module: loaders
       source: MNISTLoader
       call: False
+    fast_cfg: False
 ldm:
   module: trainer.models.ldm
   source: LDMTrainer
