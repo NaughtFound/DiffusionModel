@@ -1,6 +1,7 @@
-from typing import Any
+from typing import Any, Optional
 import torch
 from torch import optim, nn
+from torch.utils.data import DataLoader
 import logging
 import utils
 from models.unet.base import UNet
@@ -57,6 +58,30 @@ class DDPMTrainer(GradientTrainer):
     def pre_train(self, model: nn.Module, **kwargs):
         self.diffusion = self.create_diffusion_model(model)
         self.diffusion.train()
+
+    def calc_loss(
+        self,
+        dataloader: DataLoader,
+        model: nn.Module,
+        optimizer_dict: dict[str, optim.Optimizer],
+        step_optimizer: bool = True,
+        desc: Optional[str] = None,
+    ):
+        if not step_optimizer:
+            self.diffusion.eval()
+
+        loss = super().calc_loss(
+            dataloader,
+            model,
+            optimizer_dict,
+            step_optimizer,
+            desc,
+        )
+
+        if not step_optimizer:
+            self.diffusion.train()
+
+        return loss
 
     def train_step(self, batch: Any, **kwargs) -> torch.Tensor:
         device = self.args.device
