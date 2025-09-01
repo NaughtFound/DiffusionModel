@@ -1,9 +1,11 @@
+from typing import Optional
 import torch
+from models.common.cfg import HasCFGBackBone
 from .base import UNet
 from . import modules as m
 
 
-class ConditionalUNet(UNet):
+class ConditionalUNet(UNet, HasCFGBackBone):
     def _build_attention(self):
         for f in self.features:
             self.down_attention.append(m.CrossAttention(f, self.emb_dim))
@@ -72,3 +74,23 @@ class ConditionalUNet(UNet):
             return self._encode(x, t, y)
 
         return self._encode_decode(x, t, y)
+
+    def forward_with_cfg(
+        self,
+        x: torch.Tensor,
+        t: torch.Tensor,
+        y: torch.Tensor,
+        cfg_scale: float,
+        y_null: Optional[torch.Tensor] = None,
+        only_encode: bool = False,
+        fast_cfg: bool = True,
+    ):
+        return super().forward_with_cfg(
+            x,
+            t,
+            y,
+            cfg_scale,
+            y_null,
+            fast_cfg=fast_cfg,
+            only_encode=only_encode,
+        )
