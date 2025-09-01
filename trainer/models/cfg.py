@@ -39,7 +39,7 @@ class CFGTrainer(DDPMTrainer):
         labels = batch[1].to(args.device)
         t = self.diffusion.t(images.shape[0])
 
-        if np.random.random() < args.alpha:
+        if np.random.random() < args.alpha and self.diffusion.training:
             labels = None
 
         loss = self.diffusion.calc_loss(images, t, labels, args.cfg_scale)

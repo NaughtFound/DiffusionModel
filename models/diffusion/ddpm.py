@@ -200,11 +200,15 @@ class DDPM(Diffusion):
         return self.f_sde.eps_theta(t, x_t)
 
     def eval(self):
+        super().eval()
+
         self.f_sde.eval()
         self.r_sde.eval()
         self.args.eps_theta.eval()
 
     def train(self):
+        super().train()
+
         self.f_sde.train()
         self.r_sde.train()
         self.args.eps_theta.train()
