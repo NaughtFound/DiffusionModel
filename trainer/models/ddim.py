@@ -1,7 +1,7 @@
 from torch import nn
 from models.diffusion.base import Diffusion
 from models.diffusion.ddim import DDIM_Params, DDIM
-from trainer.models.ddpm import DDPMTrainer
+from .ddpm import DDPMTrainer
 
 
 class DDIMTrainer(DDPMTrainer):

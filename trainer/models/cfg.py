@@ -7,7 +7,7 @@ import utils
 from models.unet.label_conditioned import LabelConditionedUNet
 from models.diffusion.base import Diffusion
 from models.diffusion.cfg import CFG_Params, CFG
-from trainer.models.ddpm import DDPMTrainer
+from .ddpm import DDPMTrainer
 
 
 class CFGTrainer(DDPMTrainer):

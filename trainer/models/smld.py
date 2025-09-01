@@ -1,7 +1,7 @@
 from torch import nn
 from models.diffusion.base import Diffusion
 from models.diffusion.smld import SMLD_Params, SMLD
-from trainer.models.ddpm import DDPMTrainer
+from .ddpm import DDPMTrainer
 
 
 class SMLDTrainer(DDPMTrainer):

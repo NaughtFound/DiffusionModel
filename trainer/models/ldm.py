@@ -8,7 +8,7 @@ from models.vit.dit import DiT
 from models.diffusion.base import Diffusion
 from models.diffusion.ldm import LDM_Params, LDM
 from models.vae.base import VAE
-from trainer.models.ddpm import DDPMTrainer
+from .ddpm import DDPMTrainer
 from . import vae
 
 

@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 import torchsde
 import torchdiffeq
-from models.diffusion.base import Diffusion
 from utils import fill_tail_dims
+from .base import Diffusion
 
 
 class DDPM_Params:
