@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 from timm.models.vision_transformer import PatchEmbed
+from models.common.cfg import HasCFGBackBone
 from . import modules as m
-from models.modules import HasCFGBackBone
 
 
 class DiT(nn.Module, HasCFGBackBone):

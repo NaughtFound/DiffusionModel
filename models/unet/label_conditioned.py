@@ -2,7 +2,7 @@ from typing import Optional
 import torch
 from torch import nn
 
-from models.modules import HasCFGBackBone
+from models.common.cfg import HasCFGBackBone
 from .base import UNet
 
 

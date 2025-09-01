@@ -1,7 +1,7 @@
 import torch
 from utils.args import with_kwargs, KWargs
+from models.common.cfg import HasCFGBackBone
 from .ddpm import DDPM, DDPM_Params, DDPM_Forward, DDPM_Reverse
-from models.modules import HasCFGBackBone
 
 
 class CFG_Params(DDPM_Params):
