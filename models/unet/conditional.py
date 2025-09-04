@@ -68,6 +68,9 @@ class ConditionalUNet(UNet, HasCFGBackBone):
         y: Optional[torch.Tensor] = None,
         only_encode: bool = False,
     ) -> torch.Tensor:
+        if t.dim() == 0:
+            t = t.expand(len(x))
+
         t = self._time_encoding(t)
 
         if y is None:

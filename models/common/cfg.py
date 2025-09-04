@@ -20,6 +20,9 @@ class HasCFGBackBone(Protocol):
         if y_null is None and fast_cfg:
             y_null = torch.zeros_like(y)
 
+        if t.dim() == 0:
+            t = t.expand(len(x))
+
         if fast_cfg:
             x_in = torch.cat([x, x], dim=0)
             t_in = torch.cat([t, t], dim=0)

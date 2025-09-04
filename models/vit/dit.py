@@ -111,6 +111,9 @@ class DiT(nn.Module, HasCFGBackBone):
         t: torch.Tensor,
         y: Optional[torch.Tensor] = None,
     ):
+        if t.dim() == 0:
+            t = t.expand(len(x))
+
         x = self.x_embed(x) + self.pos_embed
         t = self.t_embed(t)
 

@@ -36,9 +36,10 @@ class LabelConditionedUNet(UNet, HasCFGBackBone):
         only_encode: bool = False,
         embed_y: bool = True,
     ) -> torch.Tensor:
-        t = self._time_encoding(t)
+        if t.dim() == 0:
+            t = t.expand(len(x))
 
-        t = t.expand(len(x), -1)
+        t = self._time_encoding(t)
 
         if embed_y and y is not None:
             y = self.label_emb(y)
