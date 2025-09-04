@@ -1,9 +1,11 @@
 import torch
 from torch import nn
+
+from models.common.mixin import ModelMixin
 from . import modules as m
 
 
-class UNet(nn.Module):
+class UNet(nn.Module, ModelMixin):
     def __init__(
         self,
         in_channels: int = 3,

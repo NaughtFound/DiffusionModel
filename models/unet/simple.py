@@ -2,10 +2,11 @@ import torch
 import torch.nn as nn
 import torchvision.transforms.functional as TF
 
+from models.common.mixin import ModelMixin
 from .modules import DoubleConv
 
 
-class SimpleUNet(nn.Module):
+class SimpleUNet(nn.Module, ModelMixin):
     def __init__(
         self,
         in_channels=1,

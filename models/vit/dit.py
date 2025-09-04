@@ -2,11 +2,13 @@ from typing import Optional
 import torch
 import torch.nn as nn
 from timm.models.vision_transformer import PatchEmbed
+
+from models.common.mixin import ModelMixin
 from models.common.cfg import HasCFGBackBone
 from . import modules as m
 
 
-class DiT(nn.Module, HasCFGBackBone):
+class DiT(nn.Module, ModelMixin, HasCFGBackBone):
     def __init__(
         self,
         in_channels: int = 4,
