@@ -25,13 +25,7 @@ class CFGTrainer(DDPMTrainer):
             return CFG(params)
 
     def create_model(self):
-        args = self.args
-
-        return LabelConditionedUNet(
-            in_channels=args.in_channels,
-            out_channels=args.in_channels,
-            num_classes=args.num_classes,
-        )
+        return LabelConditionedUNet.from_params(self.args)
 
     def train_step(self, batch: Any, **kwargs) -> torch.Tensor:
         args = self.args

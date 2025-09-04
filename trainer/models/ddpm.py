@@ -24,12 +24,7 @@ class DDPMTrainer(GradientTrainer):
             return DDPM(params)
 
     def create_model(self):
-        args = self.args
-
-        return UNet(
-            in_channels=args.in_channels,
-            out_channels=args.in_channels,
-        )
+        return UNet.from_params(self.args)
 
     def load_last_checkpoint(self):
         args = self.args

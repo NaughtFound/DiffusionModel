@@ -68,13 +68,18 @@ class LDMTrainer(DDPMTrainer):
             img_size = args.latent_size
 
         if args.eps_theta_type == "unet":
-            eps_theta = ConditionalUNet(in_channels=channels, out_channels=channels)
+            eps_theta = ConditionalUNet.from_params_with_kwargs(
+                args,
+                in_channels=channels,
+                out_channels=channels,
+            )
             tau_theta = nn.Embedding(args.num_classes, eps_theta.emb_dim)
 
             return nn.ModuleDict({"eps_theta": eps_theta, "tau_theta": tau_theta})
 
         elif args.eps_theta_type == "dit":
-            eps_theta = DiT(
+            eps_theta = DiT.from_params_with_kwargs(
+                args,
                 in_channels=channels,
                 input_size=img_size,
                 learn_sigma=False,
