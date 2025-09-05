@@ -1,7 +1,6 @@
 from typing import Any, Optional
 import torch
 from torch import optim, nn
-from torch.optim.swa_utils import AveragedModel, get_ema_multi_avg_fn
 from torch.utils.data import DataLoader
 import logging
 import utils
@@ -12,11 +11,6 @@ from trainer.grad import GradientTrainer
 
 
 class DDPMTrainer(GradientTrainer):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-        self.global_step = 0
-
     def create_diffusion_model(self, eps_theta: nn.Module) -> Diffusion:
         args = self.args
 
@@ -54,26 +48,11 @@ class DDPMTrainer(GradientTrainer):
 
             eps_theta.to(args.device)
 
-        self.global_step += last_epoch
-
         return eps_theta, optimizer, last_epoch
 
     def pre_train(self, model: nn.Module, **kwargs):
-        args = self.args
-
         self.diffusion = self.create_diffusion_model(model)
         self.diffusion.train()
-
-        if args.use_ema:
-            self.ema = AveragedModel(
-                model=model,
-                multi_avg_fn=get_ema_multi_avg_fn(args.ema_decay),
-                device=args.device,
-                use_buffers=True,
-            )
-            self.ema.eval()
-        else:
-            self.ema = None
 
     def calc_loss(
         self,
@@ -83,13 +62,8 @@ class DDPMTrainer(GradientTrainer):
         step_optimizer: bool = True,
         desc: Optional[str] = None,
     ):
-        args = self.args
-
         if not step_optimizer:
             self.diffusion.eval()
-
-            if args.use_ema and isinstance(self.ema, AveragedModel):
-                model = self.ema
 
         loss = super().calc_loss(
             dataloader,
@@ -99,23 +73,13 @@ class DDPMTrainer(GradientTrainer):
             desc,
         )
 
-        if step_optimizer:
-            if args.use_ema and isinstance(self.ema, AveragedModel):
-                if (
-                    self.global_step >= args.ema_start
-                    and self.global_step % args.ema_update_freq == 0
-                ):
-                    logging.info("Updating EMA model")
-                    self.ema.update_parameters(model)
-        else:
+        if not step_optimizer:
             self.diffusion.train()
 
         return loss
 
     def train_step(self, batch: Any, **kwargs) -> torch.Tensor:
         device = self.args.device
-
-        self.global_step += 1
 
         images = batch[0].to(device)
         t = self.diffusion.t(images.shape[0])
@@ -133,9 +97,6 @@ class DDPMTrainer(GradientTrainer):
     ):
         args = self.args
         n = len(batch[0])
-
-        if args.use_ema and isinstance(self.ema, AveragedModel):
-            model = self.ema.module
 
         logging.info(f"Sampling for epoch {epoch + 1}")
         self.diffusion.eval()
@@ -177,11 +138,6 @@ class DDPMTrainer(GradientTrainer):
         args.beta_min = 1e-4
         args.beta_max = 2e-2
 
-        args.use_ema = True
-        args.ema_decay = 0.99
-        args.ema_start = 100
-        args.ema_update_freq = 1
-
         return args
 
     @staticmethod
@@ -195,18 +151,5 @@ class DDPMTrainer(GradientTrainer):
         parser.add_argument("--T", type=int, default=d_args.T)
         parser.add_argument("--beta_min", type=float, default=d_args.beta_min)
         parser.add_argument("--beta_max", type=float, default=d_args.beta_max)
-
-        parser.add_argument("--use_ema", type=bool, default=d_args.use_ema)
-        parser.add_argument("--ema_decay", type=float, default=d_args.ema_decay)
-        parser.add_argument(
-            "--ema_start",
-            type=int,
-            default=d_args.ema_start,
-        )
-        parser.add_argument(
-            "--ema_update_freq",
-            type=int,
-            default=d_args.ema_update_freq,
-        )
 
         return parser

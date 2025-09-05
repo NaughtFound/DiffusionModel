@@ -5,6 +5,7 @@ import argparse
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.optim.swa_utils import AveragedModel, get_ema_multi_avg_fn
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard.writer import SummaryWriter
 import logging
@@ -99,6 +100,17 @@ class GradientTrainer(Trainer):
 
         self.pre_train(dataloader=train_dataloader, model=model)
 
+        ema = None
+
+        if args.use_ema:
+            ema = AveragedModel(
+                model=model,
+                multi_avg_fn=get_ema_multi_avg_fn(args.ema_decay),
+                device=args.device,
+                use_buffers=True,
+            )
+            ema.eval()
+
         train_logger = SummaryWriter(
             os.path.join(args.prefix, "runs_train", args.run_name)
         )
@@ -122,6 +134,11 @@ class GradientTrainer(Trainer):
                 desc=f"Training [{epoch + 1}/{self.args.epochs}]",
             )
 
+            if args.use_ema and isinstance(ema, AveragedModel):
+                if epoch >= args.ema_start and epoch % args.ema_update_freq == 0:
+                    logging.info("Updating EMA model")
+                    ema.update_parameters(model)
+
             for loss_name, loss in loss_dict.items():
                 train_logger.add_scalar(
                     f"Loss {loss_name}",
@@ -130,8 +147,12 @@ class GradientTrainer(Trainer):
                 )
 
             if (epoch + 1) % args.save_freq == 0:
+                save_model = model
+                if args.use_ema and isinstance(ema, AveragedModel):
+                    save_model = ema.module
+
                 self.save_step(
-                    model=model,
+                    model=save_model,
                     optimizer=optimizer,
                     epoch=epoch,
                     batch=next(iter(train_dataloader)),
@@ -142,9 +163,14 @@ class GradientTrainer(Trainer):
 
             with torch.no_grad():
                 model.eval()
+
+                valid_model = model
+                if args.use_ema and isinstance(ema, AveragedModel):
+                    valid_model = ema.module
+
                 loss_dict = self.calc_loss(
                     dataloader=valid_dataloader,
-                    model=model,
+                    model=valid_model,
                     optimizer_dict=optimizer_dict,
                     step_optimizer=False,
                     desc=f"Validation [{epoch + 1}/{args.epochs}]",
@@ -163,9 +189,14 @@ class GradientTrainer(Trainer):
 
             with torch.no_grad():
                 model.eval()
+
+                test_model = model
+                if args.use_ema and isinstance(ema, AveragedModel):
+                    test_model = ema.module
+
                 loss_dict = self.calc_loss(
                     dataloader=test_dataloader,
-                    model=model,
+                    model=test_model,
                     optimizer_dict=optimizer_dict,
                     step_optimizer=False,
                     desc="Testing",
@@ -201,6 +232,11 @@ class GradientTrainer(Trainer):
         args.checkpoint = None
         args.save_freq = 5
 
+        args.use_ema = True
+        args.ema_decay = 0.99
+        args.ema_start = 15
+        args.ema_update_freq = 1
+
         return args
 
     @staticmethod
@@ -218,5 +254,18 @@ class GradientTrainer(Trainer):
         parser.add_argument("--checkpoint", type=str, default=d_args.checkpoint)
         parser.add_argument("--save_freq", type=int, default=d_args.save_freq)
         parser.add_argument("--loader", type=DatasetLoader, required=True)
+
+        parser.add_argument("--use_ema", type=bool, default=d_args.use_ema)
+        parser.add_argument("--ema_decay", type=float, default=d_args.ema_decay)
+        parser.add_argument(
+            "--ema_start",
+            type=int,
+            default=d_args.ema_start,
+        )
+        parser.add_argument(
+            "--ema_update_freq",
+            type=int,
+            default=d_args.ema_update_freq,
+        )
 
         return parser
