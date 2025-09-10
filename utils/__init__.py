@@ -5,6 +5,7 @@ from torch import nn, optim
 import torchvision
 from PIL import Image
 from matplotlib import pyplot as plt
+import mlflow
 from typing import Union
 
 
@@ -117,6 +118,8 @@ def load_state_dict(
 
 
 def setup_logging(run_name: str, prefix: str = "."):
+    mlflow.set_tracking_uri(os.path.join(prefix, "runs", run_name))
+
     os.makedirs(os.path.join(prefix, "weights"), exist_ok=True)
     os.makedirs(os.path.join(prefix, "results"), exist_ok=True)
     os.makedirs(os.path.join(prefix, "weights", run_name), exist_ok=True)

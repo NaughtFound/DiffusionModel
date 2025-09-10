@@ -7,8 +7,8 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.optim.swa_utils import AveragedModel, get_ema_multi_avg_fn
 from torch.utils.data import DataLoader
-from torch.utils.tensorboard.writer import SummaryWriter
 import logging
+import mlflow
 from tqdm import tqdm
 from utils.loader import ConfigKey, DatasetLoader
 from .base import Trainer
@@ -111,17 +111,12 @@ class GradientTrainer(Trainer):
             )
             ema.eval()
 
-        train_logger = SummaryWriter(
-            os.path.join(args.prefix, "runs_train", args.run_name)
-        )
-
         len_train_data = len(train_dataloader)
 
         if valid_dataloader is not None:
             len_valid_data = len(valid_dataloader)
-            valid_logger = SummaryWriter(
-                os.path.join(args.prefix, "runs_valid", args.run_name)
-            )
+
+        mlflow.start_run(run_name=args.run_name)
 
         for epoch in range(last_epoch + 1, args.epochs):
             logging.info(f"Starting epoch {epoch + 1}")
@@ -140,10 +135,10 @@ class GradientTrainer(Trainer):
                     ema.update_parameters(model)
 
             for loss_name, loss in loss_dict.items():
-                train_logger.add_scalar(
-                    f"Loss {loss_name}",
-                    loss / len_train_data,
-                    global_step=epoch,
+                mlflow.log_metric(
+                    key=f"train/{loss_name}",
+                    value=loss / len_train_data,
+                    step=epoch,
                 )
 
             if (epoch + 1) % args.save_freq == 0:
@@ -178,10 +173,10 @@ class GradientTrainer(Trainer):
                 model.train()
 
                 for loss_name, loss in loss_dict.items():
-                    valid_logger.add_scalar(
-                        f"Loss {loss_name}",
-                        loss / len_valid_data,
-                        global_step=epoch,
+                    mlflow.log_metric(
+                        key=f"valid/{loss_name}",
+                        value=loss / len_valid_data,
+                        step=epoch,
                     )
 
         if test_dataloader is not None:
@@ -208,6 +203,8 @@ class GradientTrainer(Trainer):
                     logging.info(f"Test Mean Loss for {loss_name}: {mean_test_loss}")
 
         self.post_train()
+
+        mlflow.end_run()
 
     @classmethod
     def create_for_inference(cls, **kwargs):
