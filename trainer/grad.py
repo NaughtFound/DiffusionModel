@@ -80,6 +80,8 @@ class GradientTrainer(Trainer):
     def train(self):
         args = self.args
 
+        mlflow.set_tracking_uri(os.path.join(args.prefix, "runs", args.run_name))
+
         dataloader_class = self.create_dataloader(args.loader, args)
         dataloaders = dataloader_class.create_dataloaders()
 
