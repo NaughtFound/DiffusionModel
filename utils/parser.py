@@ -1,10 +1,39 @@
 import importlib
 from importlib.util import spec_from_file_location, module_from_spec
 import os
+from copy import deepcopy
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Optional, Union
+from typing import Any, Callable, Optional, Union, Generic, TypeVar
 import yaml
+
+R = TypeVar("R")
+
+
+class FnWithKwargs(Generic[R]):
+    fn: Callable
+    kwargs: Optional[dict[str, Any]]
+
+    def __init__(
+        self,
+        fn: Callable[..., R],
+        kwargs: Optional[dict[str, Any]] = None,
+    ):
+        self.fn = fn
+
+        if kwargs is None:
+            kwargs = {}
+
+        self.kwargs = kwargs
+
+    def __call__(self, *args, **kwargs) -> R:
+        call_kwargs = deepcopy(self.kwargs)
+        call_kwargs.update(kwargs)
+
+        return self.fn(*args, **call_kwargs)
+
+    def update(self, **kwargs):
+        self.kwargs.update(kwargs)
 
 
 class ConfigParser:
@@ -63,6 +92,8 @@ class ConfigParser:
         module_path = entry["module"]
         symbol_name = entry["source"]
         call = entry.get("call", True)
+        lazy = entry.get("lazy", False)
+        args = entry.get("args", {})
 
         obj = None
 
@@ -71,30 +102,35 @@ class ConfigParser:
         else:
             obj = self._load_object(module_path, symbol_name)
 
-        if callable(obj) and call:
-            args = entry.get("args", {})
+        if not call:
+            return obj
 
-            if isinstance(args, dict):
-                for k in args:
-                    args[k] = self._resolve_entry(args[k])
-                    self.variables[k] = args[k]
+        if isinstance(args, dict):
+            for k in args:
+                args[k] = self._resolve_entry(args[k])
+                self.variables[k] = args[k]
 
-            if isinstance(call, bool):
-                return obj(**args)
+        if isinstance(call, bool):
+            if not callable(obj):
+                raise TypeError(f"{obj} is not callable")
 
-            if not hasattr(obj, call):
-                raise AttributeError(
-                    f"Module '{symbol_name}' has no attribute '{call}'"
-                )
+            if lazy:
+                return FnWithKwargs(fn=obj, kwargs=args)
 
-            fn = getattr(obj, call)
+            return obj(**args)
 
-            if not callable(fn):
-                raise TypeError(f"{fn} is not callable")
+        if not hasattr(obj, call):
+            raise AttributeError(f"Module '{symbol_name}' has no attribute '{call}'")
 
-            return fn(**args)
+        fn = getattr(obj, call)
 
-        return obj
+        if not callable(fn):
+            raise TypeError(f"{fn} is not callable")
+
+        if lazy:
+            return FnWithKwargs(fn=fn, kwargs=args)
+
+        return fn(**args)
 
     def parse(self) -> dict[str, Any]:
         res = {}
