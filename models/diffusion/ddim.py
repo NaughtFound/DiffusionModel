@@ -78,7 +78,7 @@ class DDIM_Forward(DDPM_Forward):
             options={"step_size": dt},
         ).view(len(t), *x_0.size())
 
-        return x_t
+        return x_t[-1]
 
 
 class DDIM_Reverse(DDPM_Reverse):
@@ -113,5 +113,5 @@ class DDIM(DDPM):
     def forward(self, x_0: torch.Tensor, t: Optional[float] = None):
         return super().forward(x_0, t)
 
-    def reverse(self, x_t: torch.Tensor):
-        return super().reverse(x_t, use_sde=False)
+    def reverse(self, x_t: torch.Tensor, use_sde: bool = False):
+        return super().reverse(x_t, use_sde=use_sde)

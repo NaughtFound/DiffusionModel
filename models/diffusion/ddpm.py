@@ -169,7 +169,7 @@ class DDPM_Reverse(nn.Module):
                 options={"step_size": dt},
             ).view(len(t), *x_t.size())
 
-        return x_0
+        return x_0[-1]
 
 
 class DDPM(Diffusion):
@@ -189,12 +189,12 @@ class DDPM(Diffusion):
         return self.f_sde(x_0, t)
 
     def reverse(self, x_t: torch.Tensor, use_sde: bool = True):
-        return self.r_sde(x_t, use_sde=use_sde)[-1]
+        return self.r_sde(x_t, use_sde=use_sde)
 
     def sample(self, n: int, use_sde: bool = True):
         x_t = torch.randn(size=(n, *self.args.input_size), device=self.args.device)
 
-        return self.r_sde(x_t, use_sde=use_sde)[-1]
+        return self.r_sde(x_t, use_sde=use_sde)
 
     def predict_noise(self, x_t: torch.Tensor, t: torch.Tensor):
         return self.f_sde.eps_theta(t, x_t)
