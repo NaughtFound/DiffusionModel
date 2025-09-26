@@ -113,6 +113,8 @@ class VAETrainer(GradientTrainer):
             if isinstance(batch, Sequence):
                 batch = batch[0]
 
+            batch = batch.to(self.args.device)
+
             total += len(batch)
             sm += batch.sum(0)
             sm_sq += (batch**2).sum(0)

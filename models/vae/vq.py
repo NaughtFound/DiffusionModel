@@ -184,7 +184,7 @@ class VAE_VQ(VAE):
 
         x_hat = self.decode(z_q)
 
-        recon_loss = torch.mean((x_hat - x) ** 2) / var
+        recon_loss = torch.mean((x_hat - x) ** 2 / var)
         embed_loss = vq_dict.get("loss", torch.zeros_like(recon_loss))
 
         loss = recon_loss + embed_loss
