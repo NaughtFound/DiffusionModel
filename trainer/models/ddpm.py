@@ -7,7 +7,7 @@ import utils
 from models.unet.base import UNet
 from models.diffusion.base import Diffusion
 from models.diffusion.ddpm import DDPM, DDPM_Params
-from trainer.grad import GradientTrainer
+from trainer.grad import GradientTrainer, GradientTrainerState
 
 
 class DDPMTrainer(GradientTrainer):
@@ -34,10 +34,11 @@ class DDPMTrainer(GradientTrainer):
         optimizer = optim.AdamW(eps_theta.parameters(), lr=args.lr)
 
         last_epoch = -1
+        run_id = None
 
         if hasattr(args, "checkpoint") and args.checkpoint is not None:
             logging.info(f"Loading checkpoint {args.checkpoint}")
-            last_epoch = utils.load_state_dict(
+            last_epoch, run_id = utils.load_state_dict(
                 eps_theta,
                 optimizer,
                 args.prefix,
@@ -48,7 +49,12 @@ class DDPMTrainer(GradientTrainer):
 
             eps_theta.to(args.device)
 
-        return eps_theta, optimizer, last_epoch
+        return GradientTrainerState(
+            model=eps_theta,
+            optimizer=optimizer,
+            epoch=last_epoch,
+            run_id=run_id,
+        )
 
     def pre_train(self, model: nn.Module, **kwargs):
         self.diffusion = self.create_diffusion_model(model)
@@ -88,38 +94,30 @@ class DDPMTrainer(GradientTrainer):
 
         return loss
 
-    def save_step(
-        self,
-        model: nn.Module,
-        optimizer: optim.Optimizer,
-        epoch: int,
-        batch: Any,
-    ):
+    def save_step(self, state: GradientTrainerState, batch: Any, **kwargs):
         args = self.args
         n = len(batch[0])
 
-        logging.info(f"Sampling for epoch {epoch + 1}")
+        logging.info(f"Sampling for epoch {state.epoch + 1}")
         self.diffusion.eval()
         sampled_images = self.diffusion.sample(n=n)
         self.diffusion.train()
-        logging.info(f"Saving results for epoch {epoch + 1}")
+        logging.info(f"Saving results for epoch {state.epoch + 1}")
         utils.save_images(
             sampled_images,
             args.prefix,
             args.run_name,
-            f"{epoch + 1}.jpg",
+            f"{state.epoch + 1}.jpg",
         )
         utils.save_state_dict(
-            model,
-            optimizer,
-            epoch,
-            args.prefix,
-            args.run_name,
-            f"ckpt-{epoch + 1}.pt",
+            model=state.model,
+            optimizer=state.optimizer,
+            epoch=state.epoch,
+            prefix=args.prefix,
+            run_name=args.run_name,
+            file_name=f"ckpt-{state.epoch + 1}.pt",
+            run_id=state.run_id,
         )
-
-    def post_train(self):
-        pass
 
     def pre_inference(self, model: nn.Module, **kwargs):
         self.pre_train(model=model, **kwargs)

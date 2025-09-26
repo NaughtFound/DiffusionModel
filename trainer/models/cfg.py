@@ -1,9 +1,10 @@
 from typing import Any
 import numpy as np
 import torch
-from torch import optim, nn
+from torch import nn
 import logging
 import utils
+from trainer.grad import GradientTrainerState
 from models.unet.label_conditioned import LabelConditionedUNet
 from models.diffusion.base import Diffusion
 from models.diffusion.cfg import CFG_Params, CFG
@@ -41,16 +42,10 @@ class CFGTrainer(DDPMTrainer):
 
         return loss
 
-    def save_step(
-        self,
-        model: nn.Module,
-        optimizer: optim.Optimizer,
-        epoch: int,
-        **kwargs,
-    ):
+    def save_step(self, state: GradientTrainerState, **kwargs):
         args = self.args
 
-        logging.info(f"Sampling for epoch {epoch + 1}")
+        logging.info(f"Sampling for epoch {state.epoch + 1}")
         self.diffusion.eval()
         labels = torch.arange(args.num_classes).long().to(args.device)
         sampled_images = self.diffusion.sample(
@@ -59,24 +54,22 @@ class CFGTrainer(DDPMTrainer):
             cfg_scale=args.cfg_scale,
         )
         self.diffusion.train()
-        logging.info(f"Saving results for epoch {epoch + 1}")
+        logging.info(f"Saving results for epoch {state.epoch + 1}")
         utils.save_images(
             sampled_images,
             args.prefix,
             args.run_name,
-            f"{epoch + 1}.jpg",
+            f"{state.epoch + 1}.jpg",
         )
         utils.save_state_dict(
-            model,
-            optimizer,
-            epoch,
-            args.prefix,
-            args.run_name,
-            f"ckpt-{epoch + 1}.pt",
+            model=state.model,
+            optimizer=state.optimizer,
+            epoch=state.epoch,
+            prefix=args.prefix,
+            run_name=args.run_name,
+            file_name=f"ckpt-{state.epoch + 1}.pt",
+            run_id=state.run_id,
         )
-
-    def post_train(self):
-        pass
 
     @staticmethod
     def create_default_args():

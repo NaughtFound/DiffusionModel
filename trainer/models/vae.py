@@ -1,4 +1,4 @@
-from typing import Any, Literal, Sequence, Union
+from typing import Any, Literal, Sequence
 import torch
 from torch import optim, nn
 from torch.utils.data import DataLoader
@@ -7,7 +7,7 @@ from tqdm import tqdm
 from models.vae.base import VAE
 from models.vae.vq import VAE_VQ_Params, VAE_VQ
 from models.vae.kl import VAE_KL_Params, VAE_KL
-from trainer.grad import GradientTrainer
+from trainer.grad import GradientTrainer, GradientTrainerState
 import utils
 
 
@@ -81,10 +81,11 @@ class VAETrainer(GradientTrainer):
             }
 
         last_epoch = -1
+        run_id = None
 
         if hasattr(args, "checkpoint") and args.checkpoint is not None:
             logging.info(f"Loading checkpoint {args.checkpoint}")
-            last_epoch = utils.load_state_dict(
+            last_epoch, run_id = utils.load_state_dict(
                 vae,
                 optimizer,
                 args.prefix,
@@ -97,7 +98,12 @@ class VAETrainer(GradientTrainer):
 
         self.global_step += last_epoch
 
-        return vae, optimizer, last_epoch
+        return GradientTrainerState(
+            model=vae,
+            optimizer=optimizer,
+            epoch=last_epoch,
+            run_id=run_id,
+        )
 
     def calc_var(self, dataloader: DataLoader) -> torch.Tensor:
         sm = 0.0
@@ -148,13 +154,7 @@ class VAETrainer(GradientTrainer):
 
         return loss
 
-    def save_step(
-        self,
-        model: VAE,
-        optimizer: Union[optim.Optimizer, dict[str, optim.Optimizer]],
-        epoch: int,
-        batch: Any,
-    ):
+    def save_step(self, state: GradientTrainerState, batch: Any, **kwargs):
         args = self.args
 
         if isinstance(batch, Sequence):
@@ -162,28 +162,26 @@ class VAETrainer(GradientTrainer):
 
         batch = batch.to(args.device)
 
-        logging.info(f"Sampling for epoch {epoch + 1}")
-        model.eval()
-        sampled_images = model(batch)
-        model.train()
+        logging.info(f"Sampling for epoch {state.epoch + 1}")
+        state.model.eval()
+        sampled_images = state.model(batch)
+        state.model.train()
         utils.save_images(
             sampled_images,
             args.prefix,
             args.run_name,
-            f"{epoch + 1}.jpg",
+            f"{state.epoch + 1}.jpg",
         )
-        logging.info(f"Saving results for epoch {epoch + 1}")
+        logging.info(f"Saving results for epoch {state.epoch + 1}")
         utils.save_state_dict(
-            model,
-            optimizer,
-            epoch,
-            args.prefix,
-            args.run_name,
-            f"ckpt-{epoch + 1}.pt",
+            model=state.model,
+            optimizer=state.optimizer,
+            epoch=state.epoch,
+            prefix=args.prefix,
+            run_name=args.run_name,
+            file_name=f"ckpt-{state.epoch + 1}.pt",
+            run_id=state.run_id,
         )
-
-    def post_train(self):
-        pass
 
     def pre_inference(self, model: VAE, **kwargs):
         self.vae = model

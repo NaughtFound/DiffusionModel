@@ -5,8 +5,7 @@ from torch import nn, optim
 import torchvision
 from PIL import Image
 from matplotlib import pyplot as plt
-import mlflow
-from typing import Union
+from typing import Optional, Union
 
 
 def plot_images(images: torch.Tensor, heatmap: bool = False, **kwargs):
@@ -67,8 +66,12 @@ def save_state_dict(
     prefix: str,
     run_name: str,
     file_name: str,
+    run_id: Optional[str] = None,
 ):
     state_dict = {"epoch": epoch}
+
+    if run_id is not None:
+        state_dict["run_id"] = run_id
 
     if isinstance(optimizer, optim.Optimizer):
         state_dict["optimizer"] = optimizer.state_dict()
@@ -95,10 +98,13 @@ def load_state_dict(
     run_name: str,
     file_name: str,
     device: torch.device,
-) -> int:
+) -> tuple[int, Optional[str]]:
     path = os.path.join(prefix, "weights", run_name, file_name)
     if os.path.exists(path):
         state_dict = torch.load(path, weights_only=True, map_location=device)
+
+        epoch = state_dict.get("epoch")
+        run_id = state_dict.get("run_id")
 
         if isinstance(optimizer, optim.Optimizer):
             optimizer.load_state_dict(state_dict.get("optimizer"))
@@ -112,9 +118,9 @@ def load_state_dict(
             for model_name in model:
                 model[model_name].load_state_dict(state_dict.get(model_name))
 
-        return state_dict.get("epoch")
+        return epoch, run_id
 
-    return -1
+    return -1, None
 
 
 def setup_logging(run_name: str, prefix: str = "."):

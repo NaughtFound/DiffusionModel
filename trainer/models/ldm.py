@@ -1,7 +1,8 @@
 from typing import Any, Literal, Optional
 import torch
-from torch import optim, nn
+from torch import nn
 import logging
+from trainer.grad import GradientTrainerState
 import utils
 from models.unet.conditional import ConditionalUNet
 from models.vit.dit import DiT
@@ -52,7 +53,8 @@ class LDMTrainer(DDPMTrainer):
 
         vae_trainer = vae.VAETrainer(**vae_args)
 
-        vae_model = vae_trainer.load_last_checkpoint()[0]
+        vae_state = vae_trainer.load_last_checkpoint()
+        vae_model = vae_state.model
         vae_model.eval()
 
         return vae_model
@@ -112,16 +114,10 @@ class LDMTrainer(DDPMTrainer):
 
         return loss
 
-    def save_step(
-        self,
-        model: nn.Module,
-        optimizer: optim.Optimizer,
-        epoch: int,
-        **kwargs,
-    ):
+    def save_step(self, state: GradientTrainerState, **kwargs):
         args = self.args
 
-        logging.info(f"Sampling for epoch {epoch + 1}")
+        logging.info(f"Sampling for epoch {state.epoch + 1}")
         self.diffusion.eval()
         labels = torch.arange(args.num_classes).long().to(args.device)
         sampled_images = self.diffusion.sample(
@@ -132,20 +128,21 @@ class LDMTrainer(DDPMTrainer):
 
         decoded_images = self.vae.decode(sampled_images)
 
-        logging.info(f"Saving results for epoch {epoch + 1}")
+        logging.info(f"Saving results for epoch {state.epoch + 1}")
         utils.save_images(
             decoded_images,
             args.prefix,
             args.run_name,
-            f"{epoch + 1}.jpg",
+            f"{state.epoch + 1}.jpg",
         )
         utils.save_state_dict(
-            model,
-            optimizer,
-            epoch,
-            args.prefix,
-            args.run_name,
-            f"ckpt-{epoch + 1}.pt",
+            model=state.model,
+            optimizer=state.optimizer,
+            epoch=state.epoch,
+            prefix=args.prefix,
+            run_name=args.run_name,
+            file_name=f"ckpt-{state.epoch + 1}.pt",
+            run_id=state.run_id,
         )
 
     def pre_inference(self, model: nn.Module, **kwargs):

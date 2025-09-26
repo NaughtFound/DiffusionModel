@@ -1,4 +1,5 @@
 import os
+from dataclasses import dataclass
 from abc import abstractmethod
 from typing import Any, Optional, Union
 import argparse
@@ -14,15 +15,17 @@ from utils.loader import ConfigKey, DatasetLoader
 from .base import Trainer
 
 
+@dataclass(frozen=True)
+class GradientTrainerState:
+    model: nn.Module
+    optimizer: Union[optim.Optimizer, dict[str, optim.Optimizer]]
+    epoch: int
+    run_id: Optional[str] = None
+
+
 class GradientTrainer(Trainer):
     @abstractmethod
-    def load_last_checkpoint(
-        self,
-    ) -> tuple[
-        nn.Module,
-        Union[optim.Optimizer, dict[str, optim.Optimizer]],
-        int,
-    ]:
+    def load_last_checkpoint(self) -> GradientTrainerState:
         pass
 
     @abstractmethod
@@ -34,13 +37,7 @@ class GradientTrainer(Trainer):
         pass
 
     @abstractmethod
-    def save_step(
-        self,
-        model: nn.Module,
-        optimizer: Union[optim.Optimizer, dict[str, optim.Optimizer]],
-        epoch: int,
-        batch: Any,
-    ) -> torch.Tensor:
+    def save_step(self, state: GradientTrainerState, batch: Any) -> torch.Tensor:
         pass
 
     @abstractmethod
@@ -89,7 +86,12 @@ class GradientTrainer(Trainer):
         valid_dataloader = dataloaders.get(ConfigKey.valid)
         test_dataloader = dataloaders.get(ConfigKey.test)
 
-        model, optimizer, last_epoch = self.load_last_checkpoint()
+        last_state = self.load_last_checkpoint()
+
+        model = last_state.model
+        optimizer = last_state.optimizer
+        last_epoch = last_state.epoch
+        run_id = last_state.run_id
 
         if isinstance(optimizer, optim.Optimizer):
             optimizer_dict = {
@@ -118,7 +120,7 @@ class GradientTrainer(Trainer):
         if valid_dataloader is not None:
             len_valid_data = len(valid_dataloader)
 
-        mlflow.start_run(run_name=args.run_name)
+        active_run = mlflow.start_run(run_name=args.run_name, run_id=run_id)
 
         for epoch in range(last_epoch + 1, args.epochs):
             logging.info(f"Starting epoch {epoch + 1}")
@@ -149,9 +151,12 @@ class GradientTrainer(Trainer):
                     save_model = ema.module
 
                 self.save_step(
-                    model=save_model,
-                    optimizer=optimizer,
-                    epoch=epoch,
+                    state=GradientTrainerState(
+                        model=save_model,
+                        optimizer=optimizer,
+                        epoch=epoch,
+                        run_id=active_run.info.run_id,
+                    ),
                     batch=next(iter(train_dataloader)),
                 )
 
@@ -207,6 +212,9 @@ class GradientTrainer(Trainer):
         self.post_train()
 
         mlflow.end_run()
+
+    def post_train(self):
+        pass
 
     @classmethod
     def create_for_inference(cls, **kwargs):
