@@ -13,21 +13,24 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--config_path", type=str, required=True)
-    parser.add_argument("--config_module", type=str)
+    parser.add_argument("--config", type=str, required=True)
+    parser.add_argument("-m", "--module", type=str, nargs="*")
 
     args = parser.parse_args()
 
-    config = ConfigParser(args.config_path).parse()
+    config = ConfigParser(args.config).parse()
 
-    if args.config_module is not None:
-        if args.config_module not in config:
-            raise KeyError(f"{args.config_module} module not found")
+    if args.module is not None:
+        for module_name in args.module:
+            if module_name not in config:
+                raise KeyError(f"{module_name} module not found")
 
-        module = config[args.config_module]
+            logging.info(f"Running {module_name}")
 
-        if isinstance(module, Trainer):
-            module.train()
+            module = config[module_name]
+
+            if isinstance(module, Trainer):
+                module.train()
 
     else:
         for k in config:
