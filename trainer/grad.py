@@ -220,10 +220,15 @@ class GradientTrainer(Trainer):
     def create_for_inference(cls, **kwargs):
         trainer = cls(**kwargs)
 
-        model = trainer.load_last_checkpoint()[0]
+        state = trainer.load_last_checkpoint()
+        model = state.model
+        run_id = state.run_id
+
         model.eval()
 
         trainer.pre_inference(model=model)
+
+        trainer.args.run_id = run_id
 
         return trainer
 
