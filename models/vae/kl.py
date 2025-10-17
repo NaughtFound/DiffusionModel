@@ -2,11 +2,13 @@ from typing import Literal, Optional
 import torch
 from diffusers.models import AutoencoderKL
 from diffusers.models.autoencoders.vae import DiagonalGaussianDistribution
+
+from models.common.params import ModelParams
 from .base import VAE
 from .modules import LPIPSWithDiscriminator
 
 
-class VAE_KL_Params:
+class VAE_KL_Params(ModelParams):
     in_channels: int
     out_channels: int
     latent_channels: int
@@ -25,7 +27,7 @@ class VAE_KL_Params:
     disc_loss: Literal["hinge", "vanilla"]
 
     def __init__(self, device: torch.device):
-        self.device = device
+        super().__init__(device)
 
         self.in_channels = 3
         self.out_channels = 3

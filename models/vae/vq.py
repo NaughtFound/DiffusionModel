@@ -1,10 +1,12 @@
 import torch
 import torch.nn as nn
+
+from models.common.params import ModelParams
 from .base import VAE
 from . import modules as m
 
 
-class VAE_VQ_Params:
+class VAE_VQ_Params(ModelParams):
     in_channels: int
     latent_channels: int
     hidden_dim: int
@@ -14,7 +16,7 @@ class VAE_VQ_Params:
     beta: float
 
     def __init__(self, device: torch.device):
-        self.device = device
+        super().__init__(device)
 
         self.in_channels = 3
         self.latent_channels = 64

@@ -1,10 +1,11 @@
 import torch
 import torch.nn as nn
+from models.common.params import ModelParams
 from utils import fill_tail_dims
 from .ddpm import DDPM_Forward, DDPM_Reverse, DDPM
 
 
-class SMLD_Params:
+class SMLD_Params(ModelParams):
     eps_theta: nn.Module
     sigma_max: float
     sigma_min: float
@@ -13,7 +14,7 @@ class SMLD_Params:
     input_size: tuple[int, int, int]
 
     def __init__(self, device: torch.device):
-        self.device = device
+        super().__init__(device)
 
         self.eps_theta = None
         self.sigma_max = 50

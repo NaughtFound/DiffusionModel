@@ -2,11 +2,12 @@ import torch
 import torch.nn as nn
 import torchsde
 import torchdiffeq
+from models.common.params import ModelParams
 from utils import fill_tail_dims
 from .base import Diffusion
 
 
-class DDPM_Params:
+class DDPM_Params(ModelParams):
     eps_theta: nn.Module
     beta_min: float
     beta_max: float
@@ -15,7 +16,7 @@ class DDPM_Params:
     input_size: tuple[int, int, int]
 
     def __init__(self, device: torch.device):
-        self.device = device
+        super().__init__(device)
 
         self.eps_theta = None
         self.beta_min = 1e-4
