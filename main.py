@@ -1,7 +1,21 @@
 import argparse
 import logging
 from trainer.base import Trainer
-from utils.parser import ConfigParser
+from utils.parser import ConfigParser, FnWithKwargs
+
+
+def parse_key_value_args(args: list[str]) -> dict[str]:
+    result = {}
+    key = None
+    for arg in args:
+        if arg.startswith("--"):
+            key = arg.lstrip("-")
+            result[key] = True
+        else:
+            if key:
+                result[key] = arg
+                key = None
+    return result
 
 
 if __name__ == "__main__":
@@ -16,9 +30,11 @@ if __name__ == "__main__":
     parser.add_argument("--config", type=str, required=True)
     parser.add_argument("-m", "--module", type=str, nargs="*")
 
-    args = parser.parse_args()
+    args, extra_args = parser.parse_known_args()
 
-    config = ConfigParser(args.config).parse()
+    kwargs = parse_key_value_args(extra_args)
+
+    config = ConfigParser(args.config, kwargs).parse()
 
     if args.module is not None:
         for module_name in args.module:
@@ -32,9 +48,16 @@ if __name__ == "__main__":
             if isinstance(module, Trainer):
                 module.train()
 
+            elif isinstance(module, FnWithKwargs):
+                module.__call__()
+
     else:
         for k in config:
             logging.info(f"Running {k}")
             module = config[k]
+
             if isinstance(module, Trainer):
                 module.train()
+
+            elif isinstance(module, FnWithKwargs):
+                module.__call__()

@@ -12,12 +12,12 @@ R = TypeVar("R")
 
 class FnWithKwargs(Generic[R]):
     fn: Callable
-    kwargs: Optional[dict[str, Any]]
+    kwargs: Optional[dict[str]]
 
     def __init__(
         self,
         fn: Callable[..., R],
-        kwargs: Optional[dict[str, Any]] = None,
+        kwargs: Optional[dict[str]] = None,
     ):
         self.fn = fn
 
@@ -37,11 +37,12 @@ class FnWithKwargs(Generic[R]):
 
 
 class ConfigParser:
-    config: dict[str, Any]
+    config: dict[str]
     local: Optional[ModuleType]
-    variables: dict[str, Any]
+    variables: dict[str]
+    kwargs: dict[str]
 
-    def __init__(self, config_path: Union[str, Path]):
+    def __init__(self, config_path: Union[str, Path], kwargs: dict[str] = None):
         root, _ = os.path.split(config_path)
 
         with open(config_path, "r") as file:
@@ -54,6 +55,7 @@ class ConfigParser:
             self.local = None
 
         self.variables = {}
+        self.kwargs = kwargs or {}
 
     def _load_python_module(self, path: str) -> ModuleType:
         if not os.path.isfile(path):
@@ -107,7 +109,11 @@ class ConfigParser:
 
         if isinstance(args, dict):
             for k in args:
-                args[k] = self._resolve_entry(args[k])
+                if k in self.kwargs:
+                    args[k] = self.kwargs[k]
+                else:
+                    args[k] = self._resolve_entry(args[k])
+
                 self.variables[k] = args[k]
 
         if isinstance(call, bool):
@@ -132,7 +138,7 @@ class ConfigParser:
 
         return fn(**args)
 
-    def parse(self) -> dict[str, Any]:
+    def parse(self) -> dict[str]:
         res = {}
 
         for k in self.config:
