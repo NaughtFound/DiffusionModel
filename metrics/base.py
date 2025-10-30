@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any, Optional, get_type_hints
 
 import torch
 
@@ -11,8 +11,10 @@ class MetricMeta:
     def from_kwargs(cls, **kwargs):
         meta = cls()
 
+        meta_kwargs = get_type_hints(cls).keys()
+
         for name, value in kwargs.items():
-            if hasattr(meta, name):
+            if name in meta_kwargs:
                 setattr(meta, name, value)
 
         return meta
