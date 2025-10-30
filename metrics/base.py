@@ -7,6 +7,16 @@ import torch
 class MetricMeta:
     device: torch.device
 
+    @classmethod
+    def from_kwargs(cls, **kwargs):
+        meta = cls()
+
+        for name, value in kwargs.items():
+            if hasattr(meta, name):
+                setattr(meta, name, value)
+
+        return meta
+
 
 class Metric(ABC):
     def __init__(self, meta: MetricMeta):
@@ -14,10 +24,7 @@ class Metric(ABC):
 
         self.meta = meta
 
-    def _unwind_batch(
-        self,
-        batch: torch.Tensor,
-    ) -> tuple[torch.Tensor, Optional[torch.Tensor]]:
+    def _unwind_batch(self, batch: Any) -> tuple[torch.Tensor, Optional[torch.Tensor]]:
         labels = None
         if isinstance(batch, list):
             labels = batch[1]
