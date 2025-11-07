@@ -189,7 +189,7 @@ class VAETrainer(GradientTrainer):
             run_id=state.run_id,
         )
 
-    def pre_inference(self, state: GradientTrainerState):
+    def pre_inference(self, state: GradientTrainerState[VAE]):
         self.vae = state.model
         self.vae.eval()
 

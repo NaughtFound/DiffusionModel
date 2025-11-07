@@ -1,4 +1,5 @@
 import os
+from typing import Generic, TypeVar
 from dataclasses import dataclass
 from abc import abstractmethod
 from typing import Any, Optional, Union
@@ -14,10 +15,12 @@ from tqdm import tqdm
 from utils.loader import ConfigKey, DatasetLoader
 from .base import Trainer
 
+M = TypeVar("M", bound=nn.Module)
+
 
 @dataclass
-class GradientTrainerState:
-    model: nn.Module
+class GradientTrainerState(Generic[M]):
+    model: M
     optimizer: Union[optim.Optimizer, dict[str, optim.Optimizer]]
     epoch: int
     run_id: Optional[str] = None
@@ -98,7 +101,7 @@ class GradientTrainer(Trainer):
         valid_dataloader = dataloaders.get(ConfigKey.valid)
         test_dataloader = dataloaders.get(ConfigKey.test)
 
-        last_state = self.load_last_checkpoint()
+        last_state: GradientTrainerState[nn.Module] = self.load_last_checkpoint()
 
         model = last_state.model
         optimizer = last_state.optimizer

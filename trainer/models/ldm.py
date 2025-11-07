@@ -93,7 +93,7 @@ class LDMTrainer(DDPMTrainer):
         else:
             raise ValueError(f"{args.eps_theta_type} is not valid for `eps_theta_type`")
 
-    def pre_train(self, state: GradientTrainerState):
+    def pre_train(self, state: GradientTrainerState[nn.ModuleDict]):
         self.diffusion = self.create_diffusion_model(**state.model)
         self.diffusion.train()
 
@@ -126,11 +126,12 @@ class LDMTrainer(DDPMTrainer):
         )
         self.diffusion.train()
 
-        decoded_images = self.vae.decode(sampled_images)
+        if isinstance(self.vae, VAE):
+            sampled_images = self.vae.decode(sampled_images)
 
         logging.info(f"Saving results for epoch {state.epoch + 1}")
         utils.save_images(
-            decoded_images,
+            sampled_images,
             args.prefix,
             args.run_name,
             f"{state.epoch + 1}.jpg",
@@ -149,7 +150,9 @@ class LDMTrainer(DDPMTrainer):
         self.pre_train(state)
 
         self.diffusion.eval()
-        self.vae.eval()
+
+        if isinstance(self.vae, VAE):
+            self.vae.eval()
 
     @staticmethod
     def create_default_args():

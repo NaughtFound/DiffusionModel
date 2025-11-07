@@ -1,5 +1,5 @@
 vq:
-  module: trainer.models.vae
+  module: trainer
   source: VAETrainer
   args:
     prefix: notebooks
@@ -17,7 +17,7 @@ vq:
       source: MNISTLoader
       call: False
 kl:
-  module: trainer.models.vae
+  module: trainer
   source: VAETrainer
   args:
     prefix: args.prefix

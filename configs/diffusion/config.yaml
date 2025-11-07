@@ -1,5 +1,5 @@
 ddpm:
-  module: trainer.models.ddpm
+  module: trainer
   source: DDPMTrainer
   args:
     prefix: notebooks
@@ -19,7 +19,7 @@ ddpm:
       source: MNISTLoader
       call: False
 cfg:
-  module: trainer.models.cfg
+  module: trainer
   source: CFGTrainer
   args:
     prefix: args.prefix
@@ -41,7 +41,7 @@ cfg:
       call: False
     fast_cfg: False
 ldm:
-  module: trainer.models.ldm
+  module: trainer
   source: LDMTrainer
   args:
     prefix: args.prefix
