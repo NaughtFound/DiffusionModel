@@ -93,8 +93,8 @@ class LDMTrainer(DDPMTrainer):
         else:
             raise ValueError(f"{args.eps_theta_type} is not valid for `eps_theta_type`")
 
-    def pre_train(self, model: nn.ModuleDict, **kwargs):
-        self.diffusion = self.create_diffusion_model(**model)
+    def pre_train(self, state: GradientTrainerState):
+        self.diffusion = self.create_diffusion_model(**state.model)
         self.diffusion.train()
 
         self.vae = self.create_vae_model()
@@ -114,7 +114,7 @@ class LDMTrainer(DDPMTrainer):
 
         return loss
 
-    def save_step(self, state: GradientTrainerState, **kwargs):
+    def save_step(self, state: GradientTrainerState):
         args = self.args
 
         logging.info(f"Sampling for epoch {state.epoch + 1}")
@@ -145,8 +145,8 @@ class LDMTrainer(DDPMTrainer):
             run_id=state.run_id,
         )
 
-    def pre_inference(self, model: nn.Module, **kwargs):
-        self.pre_train(model=model, **kwargs)
+    def pre_inference(self, state: GradientTrainerState):
+        self.pre_train(state)
 
         self.diffusion.eval()
         self.vae.eval()

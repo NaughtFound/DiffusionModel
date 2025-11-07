@@ -56,8 +56,8 @@ class DDPMTrainer(GradientTrainer):
             run_id=run_id,
         )
 
-    def pre_train(self, model: nn.Module, **kwargs):
-        self.diffusion = self.create_diffusion_model(model)
+    def pre_train(self, state: GradientTrainerState):
+        self.diffusion = self.create_diffusion_model(state.model)
         self.diffusion.train()
 
     def calc_loss(
@@ -94,8 +94,10 @@ class DDPMTrainer(GradientTrainer):
 
         return loss
 
-    def save_step(self, state: GradientTrainerState, batch: Any, **kwargs):
+    def save_step(self, state: GradientTrainerState):
         args = self.args
+
+        batch = state.get_param("batch")
         n = len(batch[0])
 
         logging.info(f"Sampling for epoch {state.epoch + 1}")
@@ -119,8 +121,8 @@ class DDPMTrainer(GradientTrainer):
             run_id=state.run_id,
         )
 
-    def pre_inference(self, model: nn.Module, **kwargs):
-        self.pre_train(model=model, **kwargs)
+    def pre_inference(self, state: GradientTrainerState):
+        self.pre_train(state)
 
         self.diffusion.eval()
 

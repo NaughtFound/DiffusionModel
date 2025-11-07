@@ -124,8 +124,10 @@ class VAETrainer(GradientTrainer):
 
         return mean_sq - mean**2
 
-    def pre_train(self, dataloader: DataLoader, **kwargs):
+    def pre_train(self, state: GradientTrainerState):
         if self.args.model_type == "vq":
+            dataloader = state.get_param("train_dataloader")
+
             self.var = self.calc_var(dataloader)
 
     def train_step(
@@ -156,8 +158,10 @@ class VAETrainer(GradientTrainer):
 
         return loss
 
-    def save_step(self, state: GradientTrainerState, batch: Any, **kwargs):
+    def save_step(self, state: GradientTrainerState):
         args = self.args
+
+        batch = state.get_param("batch")
 
         if isinstance(batch, Sequence):
             batch = batch[0]
@@ -185,8 +189,8 @@ class VAETrainer(GradientTrainer):
             run_id=state.run_id,
         )
 
-    def pre_inference(self, model: VAE, **kwargs):
-        self.vae = model
+    def pre_inference(self, state: GradientTrainerState):
+        self.vae = state.model
         self.vae.eval()
 
     @staticmethod

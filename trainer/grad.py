@@ -15,12 +15,25 @@ from utils.loader import ConfigKey, DatasetLoader
 from .base import Trainer
 
 
-@dataclass(frozen=True)
+@dataclass
 class GradientTrainerState:
     model: nn.Module
     optimizer: Union[optim.Optimizer, dict[str, optim.Optimizer]]
     epoch: int
     run_id: Optional[str] = None
+    kwargs: Optional[dict[str]] = None
+
+    def set_param(self, key: str, value: Any) -> None:
+        if self.kwargs is None:
+            self.kwargs = {}
+
+        self.kwargs[key] = value
+
+    def get_param(self, key: str) -> Any:
+        if self.kwargs is None:
+            self.kwargs = {}
+
+        return self.kwargs.get(key)
 
 
 class GradientTrainer(Trainer):
@@ -28,8 +41,7 @@ class GradientTrainer(Trainer):
     def load_last_checkpoint(self) -> GradientTrainerState:
         pass
 
-    @abstractmethod
-    def pre_train(self, dataloader: DataLoader, model: nn.Module):
+    def pre_train(self, state: GradientTrainerState):
         pass
 
     @abstractmethod
@@ -37,11 +49,11 @@ class GradientTrainer(Trainer):
         pass
 
     @abstractmethod
-    def save_step(self, state: GradientTrainerState, batch: Any) -> torch.Tensor:
+    def save_step(self, state: GradientTrainerState) -> torch.Tensor:
         pass
 
     @abstractmethod
-    def pre_inference(self, model: nn.Module):
+    def pre_inference(self, state: GradientTrainerState):
         pass
 
     def calc_loss(
@@ -100,10 +112,6 @@ class GradientTrainer(Trainer):
         else:
             optimizer_dict = optimizer
 
-        model.train()
-
-        self.pre_train(dataloader=train_dataloader, model=model)
-
         ema = None
 
         if args.use_ema:
@@ -114,6 +122,15 @@ class GradientTrainer(Trainer):
                 use_buffers=True,
             )
             ema.eval()
+
+        last_state.set_param("train_dataloader", train_dataloader)
+        last_state.set_param("valid_dataloader", valid_dataloader)
+        last_state.set_param("test_dataloader", test_dataloader)
+        last_state.set_param("ema", ema)
+
+        model.train()
+
+        self.pre_train(last_state)
 
         len_train_data = len(train_dataloader)
 
@@ -150,15 +167,17 @@ class GradientTrainer(Trainer):
                 if args.use_ema and isinstance(ema, AveragedModel):
                     save_model = ema.module
 
-                self.save_step(
-                    state=GradientTrainerState(
-                        model=save_model,
-                        optimizer=optimizer,
-                        epoch=epoch,
-                        run_id=active_run.info.run_id,
-                    ),
-                    batch=next(iter(train_dataloader)),
+                save_state = GradientTrainerState(
+                    model=save_model,
+                    optimizer=optimizer,
+                    epoch=epoch,
+                    run_id=active_run.info.run_id,
+                    kwargs={**last_state.kwargs},
                 )
+
+                save_state.set_param("batch", next(iter(train_dataloader)))
+
+                self.save_step(save_state)
 
             if valid_dataloader is None:
                 continue
@@ -209,11 +228,23 @@ class GradientTrainer(Trainer):
                     mean_test_loss = loss / len_test_data
                     logging.info(f"Test Mean Loss for {loss_name}: {mean_test_loss}")
 
-        self.post_train()
+        final_model = model
+        if args.use_ema and isinstance(ema, AveragedModel):
+            final_model = ema.module
+
+        final_state = GradientTrainerState(
+            model=final_model,
+            optimizer=optimizer,
+            epoch=epoch,
+            run_id=active_run.info.run_id,
+            kwargs={**last_state.kwargs},
+        )
+
+        self.post_train(final_state)
 
         mlflow.end_run()
 
-    def post_train(self):
+    def post_train(self, state: GradientTrainerState):
         pass
 
     @classmethod
@@ -226,7 +257,7 @@ class GradientTrainer(Trainer):
 
         model.eval()
 
-        trainer.pre_inference(model=model)
+        trainer.pre_inference(state)
 
         trainer.args.run_id = run_id
 

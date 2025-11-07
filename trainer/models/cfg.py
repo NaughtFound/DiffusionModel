@@ -42,7 +42,7 @@ class CFGTrainer(DDPMTrainer):
 
         return loss
 
-    def save_step(self, state: GradientTrainerState, **kwargs):
+    def save_step(self, state: GradientTrainerState):
         args = self.args
 
         logging.info(f"Sampling for epoch {state.epoch + 1}")
