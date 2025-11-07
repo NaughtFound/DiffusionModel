@@ -238,7 +238,7 @@ class GradientTrainer(Trainer):
         final_state = GradientTrainerState(
             model=final_model,
             optimizer=optimizer,
-            epoch=epoch,
+            epoch=args.epochs - 1,
             run_id=active_run.info.run_id,
             kwargs={**last_state.kwargs},
         )
