@@ -4,3 +4,4 @@ diffusers[torch]==0.35.1
 timm==1.0.19
 lpips==0.1.4
 mlflow==3.3.2
+kaizo==0.0.2

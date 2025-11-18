@@ -8,6 +8,7 @@
     "fromarray",
     "GELU",
     "imshow",
+    "kaizo",
     "lerp",
     "levelname",
     "lpips",

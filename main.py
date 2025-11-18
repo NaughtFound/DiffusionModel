@@ -1,7 +1,7 @@
 import argparse
 import logging
 from trainer.base import Trainer
-from utils.parser import ConfigParser, FnWithKwargs
+from kaizo.utils import ConfigParser, FnWithKwargs
 
 
 def parse_key_value_args(args: list[str]) -> dict[str]:
