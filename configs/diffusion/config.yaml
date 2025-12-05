@@ -23,7 +23,7 @@ cfg:
   module: trainer
   source: CFGTrainer
   args:
-    prefix: args.prefix
+    prefix: .{prefix}
     model_type: sde
     img_size: 32
     in_channels: 1
@@ -31,7 +31,7 @@ cfg:
     batch_size: 64
     shuffle: True
     save_freq: 50
-    dataset_path: args.dataset_path
+    dataset_path: .{dataset_path}
     num_classes: 10
     beta_min: 0.1
     beta_max: 1
@@ -46,14 +46,14 @@ ldm:
   module: trainer
   source: LDMTrainer
   args:
-    prefix: args.prefix
+    prefix: .{prefix}
     model_type: sde
     img_size: 32
     in_channels: 1
     batch_size: 256
     shuffle: True
     save_freq: 50
-    dataset_path: args.dataset_path
+    dataset_path: .{dataset_path}
     beta_min: 0.1
     beta_max: 1
     num_classes: 10

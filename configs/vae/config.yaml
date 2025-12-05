@@ -20,7 +20,7 @@ kl:
   module: trainer
   source: VAETrainer
   args:
-    prefix: args.prefix
+    prefix: .{prefix}
     model_type: kl
     in_channels: 1
     disc_in_channels: 1
@@ -28,7 +28,7 @@ kl:
     batch_size: 128
     shuffle: True
     save_freq: 5
-    dataset_path: args.dataset_path
+    dataset_path: .{dataset_path}
     target_transform:
     download: True
     loader:
