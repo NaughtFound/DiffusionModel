@@ -1,8 +1,13 @@
+prefix: notebooks
+dataset_path: ./notebooks/data
+loader:
+  module: loaders
+  source: MNISTLoader
+  call: False
 ddpm:
   module: trainer
   source: DDPMTrainer
   args:
-    prefix: notebooks
     model_type: sde
     img_size: 32
     in_channels: 1
@@ -10,20 +15,17 @@ ddpm:
     batch_size: 64
     shuffle: True
     save_freq: 50
-    dataset_path: ./notebooks/data
     beta_min: 0.1
     beta_max: 1
     target_transform:
     download: True
-    loader:
-      module: loaders
-      source: MNISTLoader
-      call: False
+    prefix: .{prefix}
+    dataset_path: .{dataset_path}
+    loader: .{loader}
 cfg:
   module: trainer
   source: CFGTrainer
   args:
-    prefix: .{prefix}
     model_type: sde
     img_size: 32
     in_channels: 1
@@ -31,36 +33,31 @@ cfg:
     batch_size: 64
     shuffle: True
     save_freq: 50
-    dataset_path: .{dataset_path}
     num_classes: 10
     beta_min: 0.1
     beta_max: 1
     target_transform:
     download: True
-    loader:
-      module: loaders
-      source: MNISTLoader
-      call: False
     fast_cfg: False
+    prefix: .{prefix}
+    dataset_path: .{dataset_path}
+    loader: .{loader}
 ldm:
   module: trainer
   source: LDMTrainer
   args:
-    prefix: .{prefix}
     model_type: sde
     img_size: 32
     in_channels: 1
     batch_size: 256
     shuffle: True
     save_freq: 50
-    dataset_path: .{dataset_path}
     beta_min: 0.1
     beta_max: 1
     num_classes: 10
     target_transform:
     download: True
-    loader:
-      module: loaders
-      source: MNISTLoader
-      call: False
     use_vae: False
+    prefix: .{prefix}
+    dataset_path: .{dataset_path}
+    loader: .{loader}

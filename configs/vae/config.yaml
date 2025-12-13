@@ -1,26 +1,28 @@
+prefix: notebooks
+dataset_path: ./notebooks/data
+loader:
+  module: loaders
+  source: MNISTLoader
+  call: False
 vq:
   module: trainer
   source: VAETrainer
   args:
-    prefix: notebooks
     model_type: vq
     img_size: 32
     in_channels: 1
     batch_size: 1024
     shuffle: True
     save_freq: 5
-    dataset_path: ./notebooks/data
     target_transform:
     download: True
-    loader:
-      module: loaders
-      source: MNISTLoader
-      call: False
+    prefix: .{prefix}
+    dataset_path: .{dataset_path}
+    loader: .{loader}
 kl:
   module: trainer
   source: VAETrainer
   args:
-    prefix: .{prefix}
     model_type: kl
     in_channels: 1
     disc_in_channels: 1
@@ -28,10 +30,8 @@ kl:
     batch_size: 128
     shuffle: True
     save_freq: 5
-    dataset_path: .{dataset_path}
     target_transform:
     download: True
-    loader:
-      module: loaders
-      source: MNISTLoader
-      call: False
+    prefix: .{prefix}
+    dataset_path: .{dataset_path}
+    loader: .{loader}
