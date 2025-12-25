@@ -1,7 +1,7 @@
 import inspect
 from typing import Any
 import argparse
-from copy import deepcopy
+from copy import copy
 
 
 class ModelMixin:
@@ -17,11 +17,11 @@ class ModelMixin:
 
     @classmethod
     def from_params(cls, params: argparse.Namespace):
-        return cls._from_kwargs(params.__dict__)
+        return cls._from_kwargs(vars(params))
 
     @classmethod
     def from_params_with_kwargs(cls, params: argparse.Namespace, **kwargs):
-        final_kwargs = deepcopy(params.__dict__)
+        final_kwargs = copy(vars(params))
         final_kwargs.update(kwargs)
 
         return cls._from_kwargs(final_kwargs)

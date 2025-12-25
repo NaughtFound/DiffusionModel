@@ -47,7 +47,7 @@ class LDMTrainer(DDPMTrainer):
 
         vae_args = {}
 
-        for key, value in args.__dict__.items():
+        for key, value in vars(args).items():
             if key.startswith("vae_"):
                 vae_args[key.split("vae_")[1]] = value
 

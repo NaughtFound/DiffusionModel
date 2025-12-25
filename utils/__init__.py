@@ -167,5 +167,5 @@ def add_prefixed_namespace(
     dst_args: argparse.Namespace,
     prefix: str,
 ):
-    for key, value in src_args.__dict__.items():
+    for key, value in vars(src_args).items():
         setattr(dst_args, f"{prefix}{key}", value)
