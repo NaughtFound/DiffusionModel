@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     kwargs = parse_key_value_args(extra_args)
 
-    config = ConfigParser(args.config, kwargs).parse()
+    config = ConfigParser(args.config, kwargs, isolated=False).parse()
 
     if args.module is not None:
         for module_name in args.module:
