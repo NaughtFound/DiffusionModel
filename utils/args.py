@@ -4,29 +4,34 @@ from collections.abc import Callable
 
 class KWargs(object):
     def __new__(cls):
-        """creates a singleton object, if it is not created,
-        or else returns the previous singleton object"""
         if not hasattr(cls, "instance"):
             cls.instance = super(KWargs, cls).__new__(cls)
         return cls.instance
 
-    def get(self, key: str) -> dict:
+    @staticmethod
+    def get(key: str) -> dict:
+        kw = KWargs()
         kwargs = {}
 
-        if hasattr(self, key):
-            kwargs = getattr(self, key)
+        if hasattr(kw, key):
+            kwargs = getattr(kw, key)
 
         return kwargs
 
-    def drop(self, func: Callable):
-        key = func.__qualname__
-        if hasattr(self, key):
-            delattr(self, key)
-
-    def insert(self, func: Callable, **kwargs):
+    @staticmethod
+    def drop(func: Callable):
+        kw = KWargs()
         key = func.__qualname__
 
-        setattr(self, key, kwargs)
+        if hasattr(kw, key):
+            delattr(kw, key)
+
+    @staticmethod
+    def insert(func: Callable, **kwargs):
+        kw = KWargs()
+        key = func.__qualname__
+
+        setattr(kw, key, kwargs)
 
 
 def with_kwargs(func: Callable):
@@ -34,7 +39,7 @@ def with_kwargs(func: Callable):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        additional_kwargs = KWargs().get(key)
+        additional_kwargs = KWargs.get(key)
 
         return func(*args, **kwargs, **additional_kwargs)
 

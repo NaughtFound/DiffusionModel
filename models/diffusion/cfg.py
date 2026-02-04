@@ -68,11 +68,11 @@ class CFG(DDPM):
         t: torch.Tensor,
         cfg_scale: float,
     ):
-        KWargs().insert(self.f_sde.s_theta, labels=labels, cfg_scale=cfg_scale)
+        KWargs.insert(self.f_sde.s_theta, labels=labels, cfg_scale=cfg_scale)
 
         noise = super().predict_noise(x_t, t)
 
-        KWargs().drop(self.f_sde.s_theta)
+        KWargs.drop(self.f_sde.s_theta)
 
         return noise
 
@@ -83,11 +83,11 @@ class CFG(DDPM):
         cfg_scale: float,
         use_sde: bool = True,
     ):
-        KWargs().insert(self.f_sde.s_theta, labels=labels, cfg_scale=cfg_scale)
+        KWargs.insert(self.f_sde.s_theta, labels=labels, cfg_scale=cfg_scale)
 
         x_0 = super().reverse(x_t, use_sde)
 
-        KWargs().drop(self.f_sde.s_theta)
+        KWargs.drop(self.f_sde.s_theta)
 
         return x_0
 
@@ -98,11 +98,11 @@ class CFG(DDPM):
         cfg_scale: float,
         use_sde: bool = True,
     ):
-        KWargs().insert(self.f_sde.s_theta, labels=labels, cfg_scale=cfg_scale)
+        KWargs.insert(self.f_sde.s_theta, labels=labels, cfg_scale=cfg_scale)
 
         x_0 = super().sample(n, use_sde)
 
-        KWargs().drop(self.f_sde.s_theta)
+        KWargs.drop(self.f_sde.s_theta)
 
         return x_0
 
@@ -113,10 +113,10 @@ class CFG(DDPM):
         labels: torch.Tensor,
         cfg_scale: float,
     ):
-        KWargs().insert(self.f_sde.s_theta, labels=labels, cfg_scale=cfg_scale)
+        KWargs.insert(self.f_sde.s_theta, labels=labels, cfg_scale=cfg_scale)
 
         loss = super().calc_loss(x_0, t)
 
-        KWargs().drop(self.f_sde.s_theta)
+        KWargs.drop(self.f_sde.s_theta)
 
         return loss

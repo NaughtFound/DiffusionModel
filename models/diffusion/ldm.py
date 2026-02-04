@@ -56,11 +56,11 @@ class LDM(DDPM):
         y: torch.Tensor,
         t: torch.Tensor,
     ):
-        KWargs().insert(self.f_sde.s_theta, y=y)
+        KWargs.insert(self.f_sde.s_theta, y=y)
 
         noise = super().predict_noise(x_t, t)
 
-        KWargs().drop(self.f_sde.s_theta)
+        KWargs.drop(self.f_sde.s_theta)
 
         return noise
 
@@ -70,11 +70,11 @@ class LDM(DDPM):
         y: torch.Tensor,
         use_sde: bool = True,
     ):
-        KWargs().insert(self.f_sde.s_theta, y=y)
+        KWargs.insert(self.f_sde.s_theta, y=y)
 
         x_0 = super().reverse(x_t, use_sde)
 
-        KWargs().drop(self.f_sde.s_theta)
+        KWargs.drop(self.f_sde.s_theta)
 
         return x_0
 
@@ -84,11 +84,11 @@ class LDM(DDPM):
         y: torch.Tensor,
         use_sde: bool = True,
     ):
-        KWargs().insert(self.f_sde.s_theta, y=y)
+        KWargs.insert(self.f_sde.s_theta, y=y)
 
         x_0 = super().sample(n, use_sde)
 
-        KWargs().drop(self.f_sde.s_theta)
+        KWargs.drop(self.f_sde.s_theta)
 
         return x_0
 
@@ -98,11 +98,11 @@ class LDM(DDPM):
         t: torch.Tensor,
         y: torch.Tensor,
     ):
-        KWargs().insert(self.f_sde.s_theta, y=y)
+        KWargs.insert(self.f_sde.s_theta, y=y)
 
         loss = super().calc_loss(x_0, t)
 
-        KWargs().drop(self.f_sde.s_theta)
+        KWargs.drop(self.f_sde.s_theta)
 
         return loss
 
