@@ -97,7 +97,7 @@ class FID(Metric):
 
         diff = mu1 - mu2
 
-        covmean, _ = scipy.linalg.sqrtm(sigma1.mm(sigma2), disp=False)
+        covmean, _ = scipy.linalg.sqrtm(sigma1.mm(sigma2).numpy(), disp=False)
 
         if np.iscomplexobj(covmean):
             if not np.allclose(np.diagonal(covmean).imag, 0, atol=1e-3):
@@ -110,7 +110,8 @@ class FID(Metric):
         if not np.isfinite(covmean).all():
             tr_covmean = np.sum(
                 np.sqrt(
-                    ((np.diag(sigma1) * eps) * (np.diag(sigma2) * eps)) / (eps * eps)
+                    ((np.diag(sigma1.numpy()) * eps) * (np.diag(sigma2.numpy()) * eps))
+                    / (eps * eps)
                 )
             )
 
@@ -118,7 +119,7 @@ class FID(Metric):
             diff.dot(diff).item()
             + torch.trace(sigma1)
             + torch.trace(sigma2)
-            - 2 * tr_covmean
+            - 2 * torch.tensor(tr_covmean)
         )
 
     @torch.no_grad()
