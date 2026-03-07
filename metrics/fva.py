@@ -1,18 +1,20 @@
-from typing import Callable, Optional
+from collections.abc import Callable
+
 import torch
-import torch.nn as nn
+from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+
 from .base import Metric, MetricMeta
 
 
 class FVAMeta(MetricMeta):
-    transform: Optional[Callable[[torch.Tensor], torch.Tensor]]
-    forward_method: Callable[[torch.Tensor, Optional[torch.Tensor]], torch.Tensor]
+    transform: Callable[[torch.Tensor], torch.Tensor] | None
+    forward_method: Callable[[torch.Tensor, torch.Tensor | None], torch.Tensor]
     feature_extractor: nn.Module
-    score_thresh: Optional[float]
+    score_thresh: float | None
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.transform = None
@@ -20,13 +22,13 @@ class FVAMeta(MetricMeta):
 
 
 class FVA(Metric):
-    def __init__(self, meta: FVAMeta):
+    def __init__(self, meta: FVAMeta) -> None:
         super().__init__(meta)
 
         self.meta = meta
 
     @torch.no_grad()
-    def calc(self, dataloader: DataLoader):
+    def calc(self, dataloader: DataLoader) -> tuple[torch.Tensor, torch.Tensor]:
         scores = []
         dists = []
 

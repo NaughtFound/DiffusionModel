@@ -1,7 +1,8 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import math
+
+import torch
+import torch.nn.functional as f
+from torch import nn
 
 
 class DoubleConv(nn.Module):
@@ -9,7 +10,8 @@ class DoubleConv(nn.Module):
         self,
         in_channels: int,
         out_channels: int,
-        mid_channels: int = None,
+        mid_channels: int | None = None,
+        *,
         residual: bool = False,
     ) -> None:
         super().__init__()
@@ -41,9 +43,8 @@ class DoubleConv(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if self.residual:
-            return F.gelu(x + self.conv(x))
-        else:
-            return self.conv(x)
+            return f.gelu(x + self.conv(x))
+        return self.conv(x)
 
 
 class CrossAttention(nn.Module):
@@ -51,6 +52,7 @@ class CrossAttention(nn.Module):
         self,
         channels: int,
         emb_dim: int,
+        *,
         self_attention: bool = False,
     ) -> None:
         super().__init__()
@@ -107,8 +109,8 @@ class CrossAttention(nn.Module):
 
 
 class SelfAttention(CrossAttention):
-    def __init__(self, channels):
-        super().__init__(channels, channels, True)
+    def __init__(self, channels: int) -> None:
+        super().__init__(channels, channels, self_attention=True)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return super().forward(x, x)

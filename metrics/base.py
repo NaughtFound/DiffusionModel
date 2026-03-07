@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Optional, get_type_hints
+from typing import Any, Self, get_type_hints
 
 import torch
 
@@ -8,7 +8,7 @@ class MetricMeta:
     device: torch.device
 
     @classmethod
-    def from_kwargs(cls, **kwargs):
+    def from_kwargs(cls, **kwargs) -> Self:
         meta = cls()
 
         meta_kwargs = get_type_hints(cls).keys()
@@ -21,12 +21,12 @@ class MetricMeta:
 
 
 class Metric(ABC):
-    def __init__(self, meta: MetricMeta):
+    def __init__(self, meta: MetricMeta) -> None:
         super().__init__()
 
         self.meta = meta
 
-    def _unwind_batch(self, batch: Any) -> tuple[torch.Tensor, Optional[torch.Tensor]]:
+    def _unwind_batch(self, batch: Any) -> tuple[torch.Tensor, torch.Tensor | None]:
         labels = None
         if isinstance(batch, list):
             labels = batch[1]

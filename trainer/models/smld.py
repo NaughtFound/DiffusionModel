@@ -1,6 +1,10 @@
+import argparse
+
 from torch import nn
+
 from models.diffusion.base import Diffusion
-from models.diffusion.smld import SMLD_Params, SMLD
+from models.diffusion.smld import SMLD, SMLDParams
+
 from .ddpm import DDPMTrainer
 
 
@@ -9,7 +13,7 @@ class SMLDTrainer(DDPMTrainer):
         args = self.args
 
         if args.model_type == "sde":
-            params = SMLD_Params(args.device)
+            params = SMLDParams(args.device)
             params.eps_theta = eps_theta
             params.sigma_min = args.sigma_min
             params.sigma_max = args.sigma_max
@@ -17,8 +21,11 @@ class SMLDTrainer(DDPMTrainer):
 
             return SMLD(params)
 
+        msg = "model type not found"
+        raise ValueError(msg)
+
     @staticmethod
-    def create_default_args():
+    def create_default_args() -> argparse.Namespace:
         args = super(SMLDTrainer, SMLDTrainer).create_default_args()
 
         args.run_name = "SMLD"
@@ -29,7 +36,7 @@ class SMLDTrainer(DDPMTrainer):
         return args
 
     @staticmethod
-    def get_arg_parser():
+    def get_arg_parser() -> argparse.ArgumentParser:
         parser = super(SMLDTrainer, SMLDTrainer).get_arg_parser()
 
         d_args = SMLDTrainer.create_default_args()

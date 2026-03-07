@@ -1,7 +1,8 @@
-from typing import Any
-from enum import Enum
 from abc import ABC, abstractmethod
 from argparse import Namespace
+from enum import Enum
+from typing import Any, Self
+
 from torch.utils.data import DataLoader, Dataset
 
 
@@ -15,24 +16,22 @@ class DataloaderConfig:
     dataset: Dataset
     kwargs: dict[str, Any]
 
-    def __init__(self, dataset: Dataset, **kwargs):
+    def __init__(self, dataset: Dataset, **kwargs) -> None:
         self.dataset = dataset
         self.kwargs = kwargs
 
 
 class DatasetLoader(ABC):
-    def __init__(self, args: Namespace):
+    def __init__(self, args: Namespace) -> None:
         super().__init__()
 
         self.args = args
 
     @classmethod
-    def from_kwargs(cls, **kwargs):
+    def from_kwargs(cls, **kwargs) -> Self:
         args = Namespace(**kwargs)
 
-        loader = cls(args)
-
-        return loader
+        return cls(args)
 
     @abstractmethod
     def get_dataloader_configs(self) -> dict[ConfigKey, DataloaderConfig]:

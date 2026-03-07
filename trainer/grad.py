@@ -1,41 +1,34 @@
-import os
-from typing import Generic, TypeVar
-from dataclasses import dataclass
-from abc import abstractmethod
-from typing import Any, Optional, Union
 import argparse
+import logging
+from abc import abstractmethod
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Self
+
+import mlflow
 import torch
-import torch.nn as nn
-import torch.optim as optim
+from torch import nn, optim
 from torch.optim.swa_utils import AveragedModel, get_ema_multi_avg_fn
 from torch.utils.data import DataLoader
-import logging
-import mlflow
 from tqdm import tqdm
-from utils.loader import ConfigKey, DatasetLoader
-from .base import Trainer
 
-M = TypeVar("M", bound=nn.Module)
+from utils.loader import ConfigKey
+
+from .base import Trainer
 
 
 @dataclass
-class GradientTrainerState(Generic[M]):
+class GradientTrainerState[M: nn.Module]:
     model: M
-    optimizer: Union[optim.Optimizer, dict[str, optim.Optimizer]]
+    optimizer: optim.Optimizer | dict[str, optim.Optimizer]
     epoch: int
-    run_id: Optional[str] = None
-    kwargs: Optional[dict[str]] = None
+    run_id: str | None = None
+    kwargs: dict[str, Any] = field(default_factory=dict)
 
     def set_param(self, key: str, value: Any) -> None:
-        if self.kwargs is None:
-            self.kwargs = {}
-
         self.kwargs[key] = value
 
-    def get_param(self, key: str) -> Any:
-        if self.kwargs is None:
-            self.kwargs = {}
-
+    def get_param(self, key: str) -> Any | None:
         return self.kwargs.get(key)
 
 
@@ -44,19 +37,19 @@ class GradientTrainer(Trainer):
     def load_last_checkpoint(self) -> GradientTrainerState:
         pass
 
-    def pre_train(self, state: GradientTrainerState):
+    def pre_train(self, state: GradientTrainerState) -> None:
         pass
 
     @abstractmethod
-    def train_step(self, model: nn.Module, batch: Any, optim_name: str) -> torch.Tensor:
+    def train_step(self, *, model: nn.Module, batch: Any, optim_name: str) -> torch.Tensor:
         pass
 
     @abstractmethod
-    def save_step(self, state: GradientTrainerState) -> torch.Tensor:
+    def save_step(self, state: GradientTrainerState) -> None:
         pass
 
     @abstractmethod
-    def pre_inference(self, state: GradientTrainerState):
+    def pre_inference(self, state: GradientTrainerState) -> None:
         pass
 
     def calc_loss(
@@ -64,8 +57,9 @@ class GradientTrainer(Trainer):
         dataloader: DataLoader,
         model: nn.Module,
         optimizer_dict: dict[str, optim.Optimizer],
+        desc: str | None = None,
+        *,
         step_optimizer: bool = True,
-        desc: Optional[str] = None,
     ) -> dict[str, float]:
         loss_dict = {}
 
@@ -89,169 +83,225 @@ class GradientTrainer(Trainer):
 
         return loss_dict
 
-    def train(self):
-        args = self.args
-
-        mlflow.set_tracking_uri(os.path.join(args.prefix, "runs", args.run_name))
-
-        dataloader_class = self.create_dataloader(args.loader, args)
-        dataloaders = dataloader_class.create_dataloaders()
-
-        train_dataloader = dataloaders[ConfigKey.train]
-        valid_dataloader = dataloaders.get(ConfigKey.valid)
-        test_dataloader = dataloaders.get(ConfigKey.test)
-
-        last_state: GradientTrainerState[nn.Module] = self.load_last_checkpoint()
-
-        model = last_state.model
-        optimizer = last_state.optimizer
-        last_epoch = last_state.epoch
-        run_id = last_state.run_id
-
+    def _get_optimizer_dict(
+        self,
+        optimizer: optim.Optimizer | dict[str, optim.Optimizer],
+    ) -> dict[str, optim.Optimizer]:
         if isinstance(optimizer, optim.Optimizer):
-            optimizer_dict = {
+            return {
                 optimizer.__class__.__name__: optimizer,
             }
-        else:
-            optimizer_dict = optimizer
 
-        ema = None
+        return optimizer
 
-        if args.use_ema:
-            ema = AveragedModel(
-                model=model,
-                multi_avg_fn=get_ema_multi_avg_fn(args.ema_decay),
-                device=args.device,
-                use_buffers=True,
+    def _setup_ema(self, model: nn.Module) -> AveragedModel | None:
+        if not self.args.use_ema:
+            return None
+
+        ema = AveragedModel(
+            model=model,
+            multi_avg_fn=get_ema_multi_avg_fn(self.args.ema_decay),
+            device=self.args.device,
+            use_buffers=True,
+        )
+        ema.eval()
+
+        return ema
+
+    def _update_ema(self, epoch: int, state: GradientTrainerState) -> None:
+        ema = state.get_param("ema")
+        if (
+            isinstance(ema, AveragedModel)
+            and epoch >= self.args.ema_start
+            and epoch % self.args.ema_update_freq == 0
+        ):
+            logging.info("Updating EMA model")
+            ema.update_parameters(state.model)
+
+    def _save_checkpoint(
+        self,
+        epoch: int,
+        state: GradientTrainerState,
+        active_run: mlflow.ActiveRun,
+    ) -> None:
+        train_dataloader = state.get_param("train_dataloader")
+        if not isinstance(train_dataloader, DataLoader):
+            return
+
+        ema = state.get_param("ema")
+
+        if (epoch + 1) % self.args.save_freq == 0:
+            save_model = state.model
+            if isinstance(ema, AveragedModel):
+                save_model = ema.module
+
+            save_state = GradientTrainerState(
+                model=save_model,
+                optimizer=state.optimizer,
+                epoch=epoch,
+                run_id=active_run.info.run_id,
+                kwargs={**state.kwargs},
             )
-            ema.eval()
 
-        last_state.set_param("train_dataloader", train_dataloader)
-        last_state.set_param("valid_dataloader", valid_dataloader)
-        last_state.set_param("test_dataloader", test_dataloader)
-        last_state.set_param("ema", ema)
+            save_state.set_param("batch", next(iter(train_dataloader)))
 
-        model.train()
+            self.save_step(save_state)
 
-        self.pre_train(last_state)
+    def _run_training(
+        self,
+        epoch: int,
+        state: GradientTrainerState,
+        active_run: mlflow.ActiveRun,
+    ) -> None:
+        train_dataloader = state.get_param("train_dataloader")
+
+        if not isinstance(train_dataloader, DataLoader):
+            return
 
         len_train_data = len(train_dataloader)
+        optimizer_dict = self._get_optimizer_dict(state.optimizer)
 
-        if valid_dataloader is not None:
-            len_valid_data = len(valid_dataloader)
+        loss_dict = self.calc_loss(
+            dataloader=train_dataloader,
+            model=state.model,
+            optimizer_dict=optimizer_dict,
+            step_optimizer=True,
+            desc=f"Training [{epoch + 1}/{self.args.epochs}]",
+        )
 
-        active_run = mlflow.start_run(run_name=args.run_name, run_id=run_id)
+        self._update_ema(epoch=epoch, state=state)
 
-        for epoch in range(last_epoch + 1, args.epochs):
-            logging.info(f"Starting epoch {epoch + 1}")
-
-            loss_dict = self.calc_loss(
-                dataloader=train_dataloader,
-                model=model,
-                optimizer_dict=optimizer_dict,
-                step_optimizer=True,
-                desc=f"Training [{epoch + 1}/{self.args.epochs}]",
+        for loss_name, loss in loss_dict.items():
+            mlflow.log_metric(
+                key=f"train/{loss_name}",
+                value=loss / len_train_data,
+                step=epoch,
             )
 
-            if args.use_ema and isinstance(ema, AveragedModel):
-                if epoch >= args.ema_start and epoch % args.ema_update_freq == 0:
-                    logging.info("Updating EMA model")
-                    ema.update_parameters(model)
+        self._save_checkpoint(epoch=epoch, state=state, active_run=active_run)
 
-            for loss_name, loss in loss_dict.items():
-                mlflow.log_metric(
-                    key=f"train/{loss_name}",
-                    value=loss / len_train_data,
-                    step=epoch,
-                )
+    @torch.no_grad()
+    def _run_validation(self, epoch: int, state: GradientTrainerState) -> None:
+        valid_dataloader = state.get_param("valid_dataloader")
+        if valid_dataloader is None:
+            return
 
-            if (epoch + 1) % args.save_freq == 0:
-                save_model = model
-                if args.use_ema and isinstance(ema, AveragedModel):
-                    save_model = ema.module
+        len_valid_data = len(valid_dataloader)
+        ema = state.get_param("ema")
+        optimizer_dict = self._get_optimizer_dict(state.optimizer)
 
-                save_state = GradientTrainerState(
-                    model=save_model,
-                    optimizer=optimizer,
-                    epoch=epoch,
-                    run_id=active_run.info.run_id,
-                    kwargs={**last_state.kwargs},
-                )
+        state.model.eval()
 
-                save_state.set_param("batch", next(iter(train_dataloader)))
+        valid_model = state.model
+        if isinstance(ema, AveragedModel):
+            valid_model = ema.module
 
-                self.save_step(save_state)
+        loss_dict = self.calc_loss(
+            dataloader=valid_dataloader,
+            model=valid_model,
+            optimizer_dict=optimizer_dict,
+            step_optimizer=False,
+            desc=f"Validation [{epoch + 1}/{self.args.epochs}]",
+        )
+        state.model.train()
 
-            if valid_dataloader is None:
-                continue
+        for loss_name, loss in loss_dict.items():
+            mlflow.log_metric(
+                key=f"valid/{loss_name}",
+                value=loss / len_valid_data,
+                step=epoch,
+            )
 
-            with torch.no_grad():
-                model.eval()
+    @torch.no_grad()
+    def _run_testing(self, state: GradientTrainerState) -> None:
+        test_dataloader = state.get_param("test_dataloader")
+        if not isinstance(test_dataloader, DataLoader):
+            return
 
-                valid_model = model
-                if args.use_ema and isinstance(ema, AveragedModel):
-                    valid_model = ema.module
+        len_test_data = len(test_dataloader)
+        ema = state.get_param("ema")
+        optimizer_dict = self._get_optimizer_dict(state.optimizer)
 
-                loss_dict = self.calc_loss(
-                    dataloader=valid_dataloader,
-                    model=valid_model,
-                    optimizer_dict=optimizer_dict,
-                    step_optimizer=False,
-                    desc=f"Validation [{epoch + 1}/{args.epochs}]",
-                )
-                model.train()
+        state.model.eval()
 
-                for loss_name, loss in loss_dict.items():
-                    mlflow.log_metric(
-                        key=f"valid/{loss_name}",
-                        value=loss / len_valid_data,
-                        step=epoch,
-                    )
+        test_model = state.model
+        if isinstance(ema, AveragedModel):
+            test_model = ema.module
 
-        if test_dataloader is not None:
-            len_test_data = len(test_dataloader)
+        loss_dict = self.calc_loss(
+            dataloader=test_dataloader,
+            model=test_model,
+            optimizer_dict=optimizer_dict,
+            step_optimizer=False,
+            desc="Testing",
+        )
+        state.model.train()
 
-            with torch.no_grad():
-                model.eval()
+        for loss_name, loss in loss_dict.items():
+            mean_test_loss = loss / len_test_data
+            logging.info(f"Test Mean Loss for {loss_name}: {mean_test_loss}")
 
-                test_model = model
-                if args.use_ema and isinstance(ema, AveragedModel):
-                    test_model = ema.module
+    def _finalize_train(
+        self,
+        state: GradientTrainerState,
+        active_run: mlflow.ActiveRun,
+    ) -> None:
+        final_model = state.model
+        ema = state.get_param("ema")
 
-                loss_dict = self.calc_loss(
-                    dataloader=test_dataloader,
-                    model=test_model,
-                    optimizer_dict=optimizer_dict,
-                    step_optimizer=False,
-                    desc="Testing",
-                )
-                model.train()
-
-                for loss_name, loss in loss_dict.items():
-                    mean_test_loss = loss / len_test_data
-                    logging.info(f"Test Mean Loss for {loss_name}: {mean_test_loss}")
-
-        final_model = model
-        if args.use_ema and isinstance(ema, AveragedModel):
+        if isinstance(ema, AveragedModel):
             final_model = ema.module
 
         final_state = GradientTrainerState(
             model=final_model,
-            optimizer=optimizer,
-            epoch=args.epochs - 1,
+            optimizer=state.optimizer,
+            epoch=self.args.epochs - 1,
             run_id=active_run.info.run_id,
-            kwargs={**last_state.kwargs},
+            kwargs={**state.kwargs},
         )
 
         self.post_train(final_state)
 
-        mlflow.end_run()
+    def train(self) -> None:
+        args = self.args
 
-    def post_train(self, state: GradientTrainerState):
+        mlflow.set_tracking_uri(Path(args.prefix) / "runs" / args.run_name)
+
+        dataloader_class = self.create_dataloader(args.loader, args)
+        dataloaders = dataloader_class.create_dataloaders()
+
+        last_state: GradientTrainerState[nn.Module] = self.load_last_checkpoint()
+
+        model = last_state.model
+        last_epoch = last_state.epoch
+        run_id = last_state.run_id
+
+        ema = self._setup_ema(model)
+
+        last_state.set_param("train_dataloader", dataloaders[ConfigKey.train])
+        last_state.set_param("valid_dataloader", dataloaders.get(ConfigKey.valid))
+        last_state.set_param("test_dataloader", dataloaders.get(ConfigKey.test))
+        last_state.set_param("ema", ema)
+
+        model.train()
+
+        self.pre_train(state=last_state)
+
+        with mlflow.start_run(run_name=args.run_name, run_id=run_id) as active_run:
+            for epoch in range(last_epoch + 1, args.epochs):
+                logging.info(f"Starting epoch {epoch + 1}")
+
+                self._run_training(epoch=epoch, state=last_state, active_run=active_run)
+                self._run_validation(epoch=epoch, state=last_state)
+
+            self._run_testing(state=last_state)
+            self._finalize_train(state=last_state, active_run=active_run)
+
+    def post_train(self, state: GradientTrainerState) -> None:
         pass
 
     @classmethod
-    def create_for_inference(cls, **kwargs):
+    def create_for_inference(cls, **kwargs) -> Self:
         trainer = cls(**kwargs)
 
         state = trainer.load_last_checkpoint()
@@ -267,7 +317,7 @@ class GradientTrainer(Trainer):
         return trainer
 
     @staticmethod
-    def create_default_args():
+    def create_default_args() -> argparse.Namespace:
         args = argparse.Namespace()
         args.prefix = "."
         args.run_name = ""
@@ -286,7 +336,7 @@ class GradientTrainer(Trainer):
         return args
 
     @staticmethod
-    def get_arg_parser():
+    def get_arg_parser() -> argparse.ArgumentParser:
         parser = argparse.ArgumentParser()
 
         d_args = GradientTrainer.create_default_args()
@@ -299,7 +349,7 @@ class GradientTrainer(Trainer):
         parser.add_argument("--device", type=str, default=d_args.device)
         parser.add_argument("--checkpoint", type=str, default=d_args.checkpoint)
         parser.add_argument("--save_freq", type=int, default=d_args.save_freq)
-        parser.add_argument("--loader", type=DatasetLoader, required=True)
+        parser.add_argument("--loader", required=True)
 
         parser.add_argument("--use_ema", type=bool, default=d_args.use_ema)
         parser.add_argument("--ema_decay", type=float, default=d_args.ema_decay)

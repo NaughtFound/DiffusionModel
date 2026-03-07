@@ -1,23 +1,25 @@
-from collections import OrderedDict
-import torch
-import torch.nn as nn
-import numpy as np
 import math
-from timm.models.vision_transformer import Attention, Mlp
+from collections import OrderedDict
+
+import numpy as np
+import torch
+from timm.layers.attention import Attention
+from timm.layers.mlp import Mlp
+from torch import nn
 
 
 class TanhGELU(nn.GELU):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(approximate="tanh")
 
 
 class QuickGELU(nn.Module):
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return x * torch.sigmoid(1.702 * x)
 
 
 class LayerNorm(nn.LayerNorm):
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         orig_type = x.dtype
         ret = super().forward(x.type(torch.float32))
         return ret.type(orig_type)
@@ -28,7 +30,7 @@ class TimeStepEmbedding(nn.Module):
         self,
         hidden_size: int,
         frequency_embedding_size: int = 256,
-    ):
+    ) -> None:
         super().__init__()
 
         self.mlp = nn.Sequential(
@@ -47,7 +49,11 @@ class TimeStepEmbedding(nn.Module):
         self.frequency_embedding_size = frequency_embedding_size
 
     @staticmethod
-    def time_step_embedding(t: torch.Tensor, dim: int, max_period: int = 10000):
+    def time_step_embedding(
+        t: torch.Tensor,
+        dim: int,
+        max_period: int = 10000,
+    ) -> torch.Tensor:
         half = dim // 2
         freq = torch.exp(
             -math.log(max_period)
@@ -57,16 +63,12 @@ class TimeStepEmbedding(nn.Module):
         args = t[:, None].float() * freq[None]
         embedding = torch.cat([torch.cos(args), torch.sin(args)], dim=-1)
         if dim % 2:
-            embedding = torch.cat(
-                [embedding, torch.zeros_like(embedding[:, :1])], dim=-1
-            )
+            embedding = torch.cat([embedding, torch.zeros_like(embedding[:, :1])], dim=-1)
         return embedding
 
-    def forward(self, t: torch.Tensor):
+    def forward(self, t: torch.Tensor) -> torch.Tensor:
         t_freq = self.time_step_embedding(t, self.frequency_embedding_size)
-        t_emb = self.mlp(t_freq)
-
-        return t_emb
+        return self.mlp(t_freq)
 
 
 class LabelEmbedding(nn.Module):
@@ -75,7 +77,7 @@ class LabelEmbedding(nn.Module):
         num_classes: int,
         hidden_size: int,
         dropout_prob: float,
-    ):
+    ) -> None:
         super().__init__()
 
         use_cfg_embedding = dropout_prob > 0
@@ -86,24 +88,26 @@ class LabelEmbedding(nn.Module):
         self.num_classes = num_classes
         self.dropout_prob = dropout_prob
 
-    def token_drop(self, labels: torch.Tensor, force_drop_ids: torch.Tensor = None):
+    def token_drop(
+        self,
+        labels: torch.Tensor,
+        force_drop_ids: torch.Tensor | None = None,
+    ) -> torch.Tensor:
         if force_drop_ids is None:
-            drop_ids = (
-                torch.rand(labels.shape[0], device=labels.device) < self.dropout_prob
-            )
+            drop_ids = torch.rand(labels.shape[0], device=labels.device) < self.dropout_prob
         else:
             drop_ids = force_drop_ids == 1
-        labels = torch.where(drop_ids, self.num_classes, labels)
+        return torch.where(drop_ids, self.num_classes, labels)
 
-        return labels
-
-    def forward(self, labels: torch.Tensor, force_drop_ids: torch.Tensor = None):
+    def forward(
+        self,
+        labels: torch.Tensor,
+        force_drop_ids: torch.Tensor | None = None,
+    ) -> torch.Tensor:
         use_dropout = self.dropout_prob > 0
         if (self.training and use_dropout) or (force_drop_ids is not None):
             labels = self.token_drop(labels, force_drop_ids)
-        embeddings = self.embedding_table(labels)
-
-        return embeddings
+        return self.embedding_table(labels)
 
 
 class DiTBlock(nn.Module):
@@ -113,7 +117,7 @@ class DiTBlock(nn.Module):
         num_heads: int,
         mlp_ratio: float = 4.0,
         **block_kwargs,
-    ):
+    ) -> None:
         super().__init__()
 
         self.norm1 = nn.LayerNorm(
@@ -158,10 +162,10 @@ class DiTBlock(nn.Module):
         x: torch.Tensor,
         shift: torch.Tensor,
         scale: torch.Tensor,
-    ):
+    ) -> torch.Tensor:
         return x * (1 + scale.unsqueeze(1)) + shift.unsqueeze(1)
 
-    def forward(self, x: torch.Tensor, c: torch.Tensor):
+    def forward(self, x: torch.Tensor, c: torch.Tensor) -> torch.Tensor:
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
             self.adaLN_modulation(c).chunk(6, dim=1)
         )
@@ -169,11 +173,9 @@ class DiTBlock(nn.Module):
         x = x + gate_msa.unsqueeze(1) * self.attn(
             self._modulate(self.norm1(x), shift_msa, scale_msa)
         )
-        x = x + gate_mlp.unsqueeze(1) * self.mlp(
+        return x + gate_mlp.unsqueeze(1) * self.mlp(
             self._modulate(self.norm2(x), shift_mlp, scale_mlp)
         )
-
-        return x
 
 
 class FinalLayer(nn.Module):
@@ -182,7 +184,7 @@ class FinalLayer(nn.Module):
         hidden_size: int,
         patch_size: int,
         out_channels: int,
-    ):
+    ) -> None:
         super().__init__()
 
         self.norm_final = nn.LayerNorm(
@@ -209,21 +211,19 @@ class FinalLayer(nn.Module):
         x: torch.Tensor,
         shift: torch.Tensor,
         scale: torch.Tensor,
-    ):
+    ) -> torch.Tensor:
         return x * (1 + scale.unsqueeze(1)) + shift.unsqueeze(1)
 
-    def forward(self, x: torch.Tensor, c: torch.Tensor):
+    def forward(self, x: torch.Tensor, c: torch.Tensor) -> torch.Tensor:
         shift, scale = self.adaLN_modulation(c).chunk(2, dim=1)
 
         x = self._modulate(self.norm_final(x), shift, scale)
-        x = self.linear(x)
-
-        return x
+        return self.linear(x)
 
 
 class PositionalEmbedding:
     @staticmethod
-    def get_1d_sin_cos_pos_embed_from_grid(embed_dim: int, pos: np.ndarray):
+    def get_1d_sin_cos_pos_embed_from_grid(embed_dim: int, pos: np.ndarray) -> np.ndarray:
         assert embed_dim % 2 == 0
 
         omega = np.arange(embed_dim // 2, dtype=np.float64)
@@ -236,12 +236,10 @@ class PositionalEmbedding:
         emb_sin = np.sin(out)
         emb_cos = np.cos(out)
 
-        emb = np.concatenate([emb_sin, emb_cos], axis=1)
-
-        return emb
+        return np.concatenate([emb_sin, emb_cos], axis=1)
 
     @staticmethod
-    def get_2d_sin_cos_pos_embed_from_grid(embed_dim: int, grid: np.ndarray):
+    def get_2d_sin_cos_pos_embed_from_grid(embed_dim: int, grid: np.ndarray) -> np.ndarray:
         assert embed_dim % 2 == 0
 
         emb_h = PositionalEmbedding.get_1d_sin_cos_pos_embed_from_grid(
@@ -253,17 +251,16 @@ class PositionalEmbedding:
             grid[1],
         )
 
-        emb = np.concatenate([emb_h, emb_w], axis=1)
-
-        return emb
+        return np.concatenate([emb_h, emb_w], axis=1)
 
     @staticmethod
     def get_2d_sin_cos_pos_embed(
         embed_dim: int,
         grid_size: int,
-        cls_token: bool = False,
         extra_tokens: int = 0,
-    ):
+        *,
+        cls_token: bool = False,
+    ) -> np.ndarray:
         grid_h = np.arange(grid_size, dtype=np.float32)
         grid_w = np.arange(grid_size, dtype=np.float32)
         grid = np.meshgrid(grid_w, grid_h)
@@ -285,7 +282,12 @@ class PositionalEmbedding:
 
 
 class ResidualAttentionBlock(nn.Module):
-    def __init__(self, d_model: int, n_head: int, attn_mask: torch.Tensor = None):
+    def __init__(
+        self,
+        d_model: int,
+        n_head: int,
+        attn_mask: torch.Tensor | None = None,
+    ) -> None:
         super().__init__()
 
         self.attn = nn.MultiheadAttention(d_model, n_head)
@@ -302,7 +304,7 @@ class ResidualAttentionBlock(nn.Module):
         self.ln_2 = LayerNorm(d_model)
         self.attn_mask = attn_mask
 
-    def attention(self, x: torch.Tensor):
+    def attention(self, x: torch.Tensor) -> torch.Tensor:
         self.attn_mask = (
             self.attn_mask.to(dtype=x.dtype, device=x.device)
             if self.attn_mask is not None
@@ -310,10 +312,9 @@ class ResidualAttentionBlock(nn.Module):
         )
         return self.attn(x, x, x, need_weights=False, attn_mask=self.attn_mask)[0]
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = x + self.attention(self.ln_1(x))
-        x = x + self.mlp(self.ln_2(x))
-        return x
+        return x + self.mlp(self.ln_2(x))
 
 
 class Transformer(nn.Module):
@@ -322,8 +323,8 @@ class Transformer(nn.Module):
         width: int,
         layers: int,
         heads: int,
-        attn_mask: torch.Tensor = None,
-    ):
+        attn_mask: torch.Tensor | None = None,
+    ) -> None:
         super().__init__()
         self.width = width
         self.layers = layers
@@ -331,5 +332,5 @@ class Transformer(nn.Module):
             *[ResidualAttentionBlock(width, heads, attn_mask) for _ in range(layers)]
         )
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.res_block(x)

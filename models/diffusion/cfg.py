@@ -1,21 +1,23 @@
 import torch
-from utils.args import with_kwargs, KWargs
+
 from models.common.cfg import HasCFGBackBone
-from .ddpm import DDPM, DDPM_Params, DDPM_Forward, DDPM_Reverse
+from utils.args import KWargs, with_kwargs
+
+from .ddpm import DDPM, DDPMForward, DDPMParams, DDPMReverse
 
 
-class CFG_Params(DDPM_Params):
+class CFGParams(DDPMParams):
     eps_theta: HasCFGBackBone
     fast_cfg: bool
 
-    def __init__(self, device: torch.device):
+    def __init__(self, device: torch.device) -> None:
         super().__init__(device)
 
         self.fast_cfg = True
 
 
-class CFG_Forward(DDPM_Forward):
-    def __init__(self, args: CFG_Params):
+class CFGForward(DDPMForward):
+    def __init__(self, args: CFGParams) -> None:
         super().__init__(args)
 
         self.args = args
@@ -34,18 +36,17 @@ class CFG_Forward(DDPM_Forward):
                 t=t,
                 y=labels,
             )
-        else:
-            return self.args.eps_theta.forward_with_cfg(
-                x=x,
-                t=t,
-                y=labels,
-                cfg_scale=cfg_scale,
-                fast_cfg=self.args.fast_cfg,
-            )
+        return self.args.eps_theta.forward_with_cfg(
+            x=x,
+            t=t,
+            y=labels,
+            cfg_scale=cfg_scale,
+            fast_cfg=self.args.fast_cfg,
+        )
 
 
-class CFG_Reverse(DDPM_Reverse):
-    def __init__(self, forward_sde: CFG_Forward, args: CFG_Params):
+class CFGReverse(DDPMReverse):
+    def __init__(self, forward_sde: CFGForward, args: CFGParams) -> None:
         super().__init__(forward_sde, args)
 
         self.forward_sde = forward_sde
@@ -53,13 +54,13 @@ class CFG_Reverse(DDPM_Reverse):
 
 
 class CFG(DDPM):
-    def __init__(self, args: CFG_Params):
+    def __init__(self, args: CFGParams) -> None:
         super().__init__(args)
 
         self.args = args
 
-        self.f_sde = CFG_Forward(args)
-        self.r_sde = CFG_Reverse(self.f_sde, args)
+        self.f_sde = CFGForward(args)
+        self.r_sde = CFGReverse(self.f_sde, args)
 
     def predict_noise(
         self,
@@ -67,7 +68,7 @@ class CFG(DDPM):
         labels: torch.Tensor,
         t: torch.Tensor,
         cfg_scale: float,
-    ):
+    ) -> torch.Tensor:
         KWargs.insert(self.f_sde.s_theta, labels=labels, cfg_scale=cfg_scale)
 
         noise = super().predict_noise(x_t, t)
@@ -81,11 +82,12 @@ class CFG(DDPM):
         x_t: torch.Tensor,
         labels: torch.Tensor,
         cfg_scale: float,
+        *,
         use_sde: bool = True,
-    ):
+    ) -> torch.Tensor:
         KWargs.insert(self.f_sde.s_theta, labels=labels, cfg_scale=cfg_scale)
 
-        x_0 = super().reverse(x_t, use_sde)
+        x_0 = super().reverse(x_t, use_sde=use_sde)
 
         KWargs.drop(self.f_sde.s_theta)
 
@@ -96,11 +98,12 @@ class CFG(DDPM):
         n: int,
         labels: torch.Tensor,
         cfg_scale: float,
+        *,
         use_sde: bool = True,
-    ):
+    ) -> torch.Tensor:
         KWargs.insert(self.f_sde.s_theta, labels=labels, cfg_scale=cfg_scale)
 
-        x_0 = super().sample(n, use_sde)
+        x_0 = super().sample(n, use_sde=use_sde)
 
         KWargs.drop(self.f_sde.s_theta)
 
@@ -112,7 +115,7 @@ class CFG(DDPM):
         t: torch.Tensor,
         labels: torch.Tensor,
         cfg_scale: float,
-    ):
+    ) -> torch.Tensor:
         KWargs.insert(self.f_sde.s_theta, labels=labels, cfg_scale=cfg_scale)
 
         loss = super().calc_loss(x_0, t)

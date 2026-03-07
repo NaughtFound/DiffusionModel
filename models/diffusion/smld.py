@@ -1,11 +1,13 @@
 import torch
-import torch.nn as nn
+from torch import nn
+
 from models.common.params import ModelParams
 from utils import fill_tail_dims
-from .ddpm import DDPM_Forward, DDPM_Reverse, DDPM
+
+from .ddpm import DDPM, DDPMForward, DDPMReverse
 
 
-class SMLD_Params(ModelParams):
+class SMLDParams(ModelParams):
     eps_theta: nn.Module
     sigma_max: float
     sigma_min: float
@@ -13,7 +15,7 @@ class SMLD_Params(ModelParams):
     t1: float
     input_size: tuple[int, int, int]
 
-    def __init__(self, device: torch.device):
+    def __init__(self, device: torch.device) -> None:
         super().__init__(device)
 
         self.eps_theta = None
@@ -26,8 +28,8 @@ class SMLD_Params(ModelParams):
         self.input_size = (1, 28, 28)
 
 
-class SMLD_Forward(DDPM_Forward):
-    def __init__(self, args: SMLD_Params):
+class SMLDForward(DDPMForward):
+    def __init__(self, args: SMLDParams) -> None:
         super().__init__(args)
 
         self.args = args
@@ -58,15 +60,15 @@ class SMLD_Forward(DDPM_Forward):
         return fill_tail_dims(g, x).expand_as(x)
 
 
-class SMLD_Reverse(DDPM_Reverse):
+class SMLDReverse(DDPMReverse):
     noise_type = "diagonal"
     sde_type = "stratonovich"
 
     def __init__(
         self,
-        forward_sde: SMLD_Forward,
-        args: SMLD_Params,
-    ):
+        forward_sde: SMLDForward,
+        args: SMLDParams,
+    ) -> None:
         super().__init__(forward_sde, args)
 
         self.forward_sde = forward_sde
@@ -74,10 +76,10 @@ class SMLD_Reverse(DDPM_Reverse):
 
 
 class SMLD(DDPM):
-    def __init__(self, args: SMLD_Params):
+    def __init__(self, args: SMLDParams) -> None:
         super().__init__(args)
 
         self.args = args
 
-        self.f_sde = SMLD_Forward(args)
-        self.r_sde = SMLD_Reverse(self.f_sde, args)
+        self.f_sde = SMLDForward(args)
+        self.r_sde = SMLDReverse(self.f_sde, args)

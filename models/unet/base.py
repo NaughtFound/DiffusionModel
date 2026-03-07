@@ -2,6 +2,7 @@ import torch
 from torch import nn
 
 from models.common.mixin import ModelMixin
+
 from . import modules as m
 
 
@@ -12,10 +13,16 @@ class UNet(nn.Module, ModelMixin):
         mid_channels: int = 64,
         out_channels: int = 3,
         emb_dim: int = 256,
-        features: list[int] = [128, 256],
-        neck_features: list[int] = [512],
+        features: list[int] | None = None,
+        neck_features: list[int] | None = None,
     ) -> None:
         super().__init__()
+
+        if features is None:
+            features = [128, 256]
+
+        if neck_features is None:
+            neck_features = [512]
 
         self.in_channels = in_channels
         self.mid_channels = mid_channels
@@ -38,7 +45,7 @@ class UNet(nn.Module, ModelMixin):
         self._build_attention()
         self._build_neck()
 
-    def _build_down(self):
+    def _build_down(self) -> None:
         f_before = self.mid_channels
         for f in self.features:
             self.down.append(m.Down(f_before, f, self.emb_dim))
@@ -46,13 +53,13 @@ class UNet(nn.Module, ModelMixin):
 
         self.down.append(m.Down(self.features[-1], self.features[-1], self.emb_dim))
 
-    def _build_up(self):
+    def _build_up(self) -> None:
         for f in reversed(self.features):
             self.up.append(m.Up(f * 2, f // 2, self.emb_dim))
 
         self.up.append(m.Up(f, self.mid_channels))
 
-    def _build_attention(self):
+    def _build_attention(self) -> None:
         for f in self.features:
             self.down_attention.append(m.SelfAttention(f))
 
@@ -63,7 +70,7 @@ class UNet(nn.Module, ModelMixin):
 
         self.up_attention.append(m.SelfAttention(self.mid_channels))
 
-    def _build_neck(self):
+    def _build_neck(self) -> None:
         n_before = self.features[-1]
         for n in self.neck_features:
             self.bottle_neck.append(m.DoubleConv(n_before, n))
@@ -83,9 +90,7 @@ class UNet(nn.Module, ModelMixin):
 
     def _time_encoding(self, t: torch.Tensor) -> torch.Tensor:
         t = t.unsqueeze(-1).to(torch.float)
-        t = self.pos_encoding(t, self.emb_dim)
-
-        return t
+        return self.pos_encoding(t, self.emb_dim)
 
     def _encode(self, x: torch.Tensor, t: torch.Tensor) -> list[torch.Tensor]:
         x = self.inc(x)
@@ -102,7 +107,7 @@ class UNet(nn.Module, ModelMixin):
 
     def _decode(self, x_l: list[torch.Tensor], t: torch.Tensor) -> torch.Tensor:
         x = x_l[-1]
-        x_l = x_l[::-1]
+        x_l.reverse()
 
         for i in range(len(self.up)):
             x = self.up[i](x, x_l[i + 1], t)
@@ -112,19 +117,13 @@ class UNet(nn.Module, ModelMixin):
 
     def _encode_decode(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         x_l = self._encode(x, t)
-        x = self._decode(x_l, t)
-
-        return x
+        return self._decode(x_l, t)
 
     def forward(
         self,
         x: torch.Tensor,
         t: torch.Tensor,
-        only_encode: bool = False,
     ) -> torch.Tensor:
         t = self._time_encoding(t)
-
-        if only_encode:
-            return self._encode(x, t)
 
         return self._encode_decode(x, t)

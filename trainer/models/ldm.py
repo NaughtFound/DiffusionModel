@@ -1,16 +1,20 @@
-from typing import Any, Literal, Optional
+import argparse
+import logging
+from typing import Any
+
 import torch
 from torch import nn
-import logging
-from trainer.grad import GradientTrainerState
+
 import utils
-from models.unet.conditional import ConditionalUNet
-from models.vit.dit import DiT
 from models.diffusion.base import Diffusion
-from models.diffusion.ldm import LDM_Params, LDM
+from models.diffusion.ldm import LDM, LDMParams
+from models.unet.conditional import ConditionalUNet
 from models.vae.base import VAE
-from .ddpm import DDPMTrainer
+from models.vit.dit import DiT
+from trainer.grad import GradientTrainerState
+
 from . import vae
+from .ddpm import DDPMTrainer
 
 
 class LDMTrainer(DDPMTrainer):
@@ -22,7 +26,7 @@ class LDMTrainer(DDPMTrainer):
         args = self.args
 
         if args.model_type == "sde":
-            params = LDM_Params(args.device)
+            params = LDMParams(args.device)
             params.eps_theta = eps_theta
             params.tau_theta = tau_theta
             params.beta_min = args.beta_min
@@ -39,7 +43,10 @@ class LDMTrainer(DDPMTrainer):
 
             return LDM(params)
 
-    def create_vae_model(self) -> Optional[VAE]:
+        msg = "model type not found"
+        raise ValueError(msg)
+
+    def create_vae_model(self) -> VAE | None:
         args = self.args
 
         if not args.use_vae:
@@ -59,7 +66,7 @@ class LDMTrainer(DDPMTrainer):
 
         return vae_model
 
-    def create_model(self):
+    def create_model(self) -> nn.ModuleDict:
         args = self.args
 
         channels = args.in_channels
@@ -79,7 +86,7 @@ class LDMTrainer(DDPMTrainer):
 
             return nn.ModuleDict({"eps_theta": eps_theta, "tau_theta": tau_theta})
 
-        elif args.eps_theta_type == "dit":
+        if args.eps_theta_type == "dit":
             eps_theta = DiT.from_params_with_kwargs(
                 args,
                 in_channels=channels,
@@ -90,16 +97,16 @@ class LDMTrainer(DDPMTrainer):
 
             return nn.ModuleDict({"eps_theta": eps_theta, "tau_theta": tau_theta})
 
-        else:
-            raise ValueError(f"{args.eps_theta_type} is not valid for `eps_theta_type`")
+        msg = f"{args.eps_theta_type} is not valid for `eps_theta_type`"
+        raise ValueError(msg)
 
-    def pre_train(self, state: GradientTrainerState[nn.ModuleDict]):
+    def pre_train(self, state: GradientTrainerState[nn.ModuleDict]) -> None:
         self.diffusion = self.create_diffusion_model(**state.model)
         self.diffusion.train()
 
         self.vae = self.create_vae_model()
 
-    def train_step(self, batch: Any, **kwargs) -> torch.Tensor:
+    def train_step(self, *, batch: Any, **kwargs) -> torch.Tensor:
         device = self.args.device
 
         images = batch[0].to(device)
@@ -110,11 +117,9 @@ class LDMTrainer(DDPMTrainer):
 
         t = self.diffusion.t(images.shape[0])
 
-        loss = self.diffusion.calc_loss(images, t, labels)
+        return self.diffusion.calc_loss(images, t, labels)
 
-        return loss
-
-    def save_step(self, state: GradientTrainerState):
+    def save_step(self, state: GradientTrainerState) -> None:
         args = self.args
 
         logging.info(f"Sampling for epoch {state.epoch + 1}")
@@ -146,7 +151,7 @@ class LDMTrainer(DDPMTrainer):
             run_id=state.run_id,
         )
 
-    def pre_inference(self, state: GradientTrainerState):
+    def pre_inference(self, state: GradientTrainerState) -> None:
         self.pre_train(state)
 
         self.diffusion.eval()
@@ -155,7 +160,7 @@ class LDMTrainer(DDPMTrainer):
             self.vae.eval()
 
     @staticmethod
-    def create_default_args():
+    def create_default_args() -> argparse.Namespace:
         args = super(LDMTrainer, LDMTrainer).create_default_args()
         vae_args = vae.VAETrainer.create_default_args()
 
@@ -171,18 +176,14 @@ class LDMTrainer(DDPMTrainer):
         return args
 
     @staticmethod
-    def get_arg_parser():
+    def get_arg_parser() -> argparse.ArgumentParser:
         parser = super(LDMTrainer, LDMTrainer).get_arg_parser()
         vae_parser = vae.VAETrainer.get_arg_parser()
 
         d_args = LDMTrainer.create_default_args()
 
         parser.add_argument("--num_classes", type=int, required=True)
-        parser.add_argument(
-            "--eps_theta_type",
-            type=Literal["unet", "dit"],
-            default=d_args.eps_theta_type,
-        )
+        parser.add_argument("--eps_theta_type", type=str, default=d_args.eps_theta_type)
 
         parser.add_argument("--use_vae", type=bool, default=d_args.use_vae)
         parser.add_argument("--latent_size", type=int, default=d_args.latent_size)

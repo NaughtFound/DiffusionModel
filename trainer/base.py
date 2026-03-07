@@ -1,19 +1,20 @@
-from abc import ABC, abstractmethod
-from typing import Any
-from argparse import Namespace, ArgumentParser
 import logging
+from abc import ABC, abstractmethod
+from argparse import ArgumentParser, Namespace
+from typing import Any
+
 from utils import setup_logging
 from utils.loader import DatasetLoader
 
 
 class Trainer(ABC):
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__()
 
         self.args = self.create_default_args()
 
-        for k in kwargs:
-            setattr(self.args, k, kwargs[k])
+        for k, v in kwargs.items():
+            setattr(self.args, k, v)
 
         logging.basicConfig(
             format="%(asctime)s - %(levelname)s: %(message)s",
@@ -23,7 +24,7 @@ class Trainer(ABC):
 
         setup_logging(self.args.run_name, self.args.prefix)
 
-    def launch(self):
+    def launch(self) -> None:
         parser = self.get_arg_parser()
         self.args = parser.parse_args()
 
@@ -41,15 +42,17 @@ class Trainer(ABC):
         try:
             instance = loader(args)
             if not isinstance(instance, DatasetLoader):
-                raise TypeError(
-                    f"Created instance must be a DatasetLoader, got {type(instance)}"
-                )
-            return instance
+                msg = f"Created instance must be a DatasetLoader, got {type(instance)}"
+                raise TypeError(msg)
+
         except Exception as e:
-            raise RuntimeError(f"Failed to create loader instance: {str(e)}") from e
+            msg = f"Failed to create loader instance: {e!s}"
+            raise RuntimeError(msg) from e
+        else:
+            return instance
 
     @abstractmethod
-    def pre_train(self, *args: Any, **kwargs: Any):
+    def pre_train(self, *args: Any, **kwargs: Any) -> None:
         pass
 
     @abstractmethod
@@ -61,15 +64,15 @@ class Trainer(ABC):
         pass
 
     @abstractmethod
-    def save_step(self):
+    def save_step(self, *args: Any, **kwargs: Any) -> None:
         pass
 
     @abstractmethod
-    def post_train(self):
+    def post_train(self, *args: Any, **kwargs: Any) -> None:
         pass
 
     @abstractmethod
-    def pre_inference(self, *args: Any, **kwargs: Any):
+    def pre_inference(self, *args: Any, **kwargs: Any) -> None:
         pass
 
     @staticmethod

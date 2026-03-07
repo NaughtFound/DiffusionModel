@@ -1,19 +1,20 @@
-from torchvision import transforms, datasets
+import torch
+from torchvision import datasets, transforms
+
 from utils.loader import ConfigKey, DataloaderConfig, DatasetLoader
 
 
 class MNISTLoader(DatasetLoader):
-    def get_transform(self):
+    def get_transform(self) -> transforms.Compose:
         args = self.args
 
-        def dequantize(x, nvals=256):
-            """[0, 1] -> [0, nvals] -> add uniform noise -> [0, 1]"""
+        def dequantize(x: torch.Tensor, nvals: int = 256) -> torch.Tensor:
+            """[0, 1] -> [0, nvals] -> add uniform noise -> [0, 1]."""
             noise = x.new().resize_as_(x).uniform_()
             x = x * (nvals - 1) + noise
-            x = x / nvals
-            return x
+            return x / nvals
 
-        transform = transforms.Compose(
+        return transforms.Compose(
             [
                 transforms.Resize((args.img_size, args.img_size)),
                 transforms.ToTensor(),
@@ -21,9 +22,7 @@ class MNISTLoader(DatasetLoader):
             ]
         )
 
-        return transform
-
-    def get_dataloader_configs(self):
+    def get_dataloader_configs(self) -> dict[ConfigKey, DataloaderConfig]:
         args = self.args
 
         kwargs = {

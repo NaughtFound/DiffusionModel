@@ -1,13 +1,17 @@
+import argparse
+import logging
 from typing import Any
+
 import numpy as np
 import torch
 from torch import nn
-import logging
+
 import utils
-from trainer.grad import GradientTrainerState
-from models.unet.label_conditioned import LabelConditionedUNet
 from models.diffusion.base import Diffusion
-from models.diffusion.cfg import CFG_Params, CFG
+from models.diffusion.cfg import CFG, CFGParams
+from models.unet.label_conditioned import LabelConditionedUNet
+from trainer.grad import GradientTrainerState
+
 from .ddpm import DDPMTrainer
 
 
@@ -16,7 +20,7 @@ class CFGTrainer(DDPMTrainer):
         args = self.args
 
         if args.model_type == "sde":
-            params = CFG_Params(args.device)
+            params = CFGParams(args.device)
             params.eps_theta = eps_theta
             params.beta_min = args.beta_min
             params.beta_max = args.beta_max
@@ -25,24 +29,26 @@ class CFGTrainer(DDPMTrainer):
 
             return CFG(params)
 
-    def create_model(self):
+        msg = "model type not found"
+        raise ValueError(msg)
+
+    def create_model(self) -> LabelConditionedUNet:
         return LabelConditionedUNet.from_params(self.args)
 
-    def train_step(self, batch: Any, **kwargs) -> torch.Tensor:
+    def train_step(self, *, batch: Any, **kwargs) -> torch.Tensor:
         args = self.args
+        rng = np.random.default_rng()
 
         images = batch[0].to(args.device)
         labels = batch[1].to(args.device)
         t = self.diffusion.t(images.shape[0])
 
-        if np.random.random() < args.alpha and self.diffusion.training:
+        if rng.random() < args.alpha and self.diffusion.training:
             labels = None
 
-        loss = self.diffusion.calc_loss(images, t, labels, args.cfg_scale)
+        return self.diffusion.calc_loss(images, t, labels, args.cfg_scale)
 
-        return loss
-
-    def save_step(self, state: GradientTrainerState):
+    def save_step(self, state: GradientTrainerState) -> None:
         args = self.args
 
         logging.info(f"Sampling for epoch {state.epoch + 1}")
@@ -72,7 +78,7 @@ class CFGTrainer(DDPMTrainer):
         )
 
     @staticmethod
-    def create_default_args():
+    def create_default_args() -> argparse.Namespace:
         args = super(CFGTrainer, CFGTrainer).create_default_args()
 
         args.run_name = "CFG"
@@ -84,7 +90,7 @@ class CFGTrainer(DDPMTrainer):
         return args
 
     @staticmethod
-    def get_arg_parser():
+    def get_arg_parser() -> argparse.ArgumentParser:
         parser = super(CFGTrainer, CFGTrainer).get_arg_parser()
 
         d_args = CFGTrainer.create_default_args()

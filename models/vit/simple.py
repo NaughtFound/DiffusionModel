@@ -2,6 +2,7 @@ import torch
 from torch import nn
 
 from models.common.mixin import ModelMixin
+
 from . import modules as m
 
 
@@ -15,7 +16,7 @@ class SimpleVit(nn.Module, ModelMixin):
         layers: int,
         heads: int,
         output_dim: int,
-    ):
+    ) -> None:
         super().__init__()
         self.img_size = img_size
         self.output_dim = output_dim
@@ -39,7 +40,7 @@ class SimpleVit(nn.Module, ModelMixin):
         self.ln_post = m.LayerNorm(width)
         self.proj = nn.Parameter(scale * torch.randn(width, output_dim))
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.conv1(x)
         x = x.reshape(x.shape[0], x.shape[1], -1)
         x = x.permute(0, 2, 1)
@@ -66,6 +67,4 @@ class SimpleVit(nn.Module, ModelMixin):
 
         x = self.ln_post(x[:, 0, :])
 
-        x = x @ self.proj
-
-        return x
+        return x @ self.proj

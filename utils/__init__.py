@@ -1,14 +1,15 @@
-import os
 import argparse
+from pathlib import Path
+from typing import Any
+
 import torch
-from torch import nn, optim
 import torchvision
-from PIL import Image
 from matplotlib import pyplot as plt
-from typing import Optional, Union
+from PIL import Image
+from torch import nn, optim
 
 
-def plot_images(images: torch.Tensor, heatmap: bool = False, **kwargs):
+def plot_images(images: torch.Tensor, *, heatmap: bool = False, **kwargs) -> None:
     grid = torchvision.utils.make_grid(images, normalize=True)
     grid_numpy = grid.permute(1, 2, 0).cpu().numpy()
 
@@ -23,22 +24,24 @@ def plot_images(images: torch.Tensor, heatmap: bool = False, **kwargs):
 
 def to_image(x: torch.Tensor) -> torch.Tensor:
     x_0 = (x.clamp(-1, 1) + 1) / 2
-    x_0 = (x_0 * 255).to(torch.uint8)
-
-    return x_0
+    return (x_0 * 255).to(torch.uint8)
 
 
 def save_images(
     x: torch.Tensor,
-    prefix: str,
+    prefix: str | Path,
     run_name: str,
     file_name: str,
+    *,
     save_as_grid: bool = True,
     **kwargs,
-):
+) -> None:
     images = to_image(x)
 
-    file_path = os.path.join(prefix, "results", run_name, file_name)
+    if isinstance(prefix, str):
+        prefix = Path(prefix)
+
+    file_path = prefix / "results" / run_name / file_name
 
     if save_as_grid:
         grid = torchvision.utils.make_grid(images, **kwargs)
@@ -47,28 +50,33 @@ def save_images(
         image = Image.fromarray(grid_numpy)
         image.save(file_path)
     else:
-        file_path, file_ext = os.path.splitext(file_path)
+        file_root = file_path.with_suffix("")
+        file_ext = file_path.suffix
 
         if not file_ext:
             file_ext = ".png"
 
-        os.makedirs(file_path, exist_ok=True)
+        file_root.mkdir(parents=True, exist_ok=True)
+
         for i, image_ts in enumerate(images):
             image_numpy = image_ts.permute(1, 2, 0).squeeze().cpu().numpy()
             image = Image.fromarray(image_numpy)
-            image.save(os.path.join(file_path, f"{i}{file_ext}"))
+            image.save(file_root / f"{i}{file_ext}")
 
 
 def save_state_dict(
-    model: Union[nn.Module, dict[str, nn.Module]],
-    optimizer: Union[optim.Optimizer, dict[str, optim.Optimizer]],
+    model: nn.Module | dict[str, nn.Module],
+    optimizer: optim.Optimizer | dict[str, optim.Optimizer],
     epoch: int,
-    prefix: str,
+    prefix: str | Path,
     run_name: str,
     file_name: str,
-    run_id: Optional[str] = None,
-):
-    state_dict = {"epoch": epoch}
+    run_id: str | None = None,
+) -> None:
+    state_dict: dict[str, Any] = {"epoch": epoch}
+
+    if isinstance(prefix, str):
+        prefix = Path(prefix)
 
     if run_id is not None:
         state_dict["run_id"] = run_id
@@ -85,22 +93,23 @@ def save_state_dict(
         for model_name in model:
             state_dict[model_name] = model[model_name].state_dict()
 
-    torch.save(
-        state_dict,
-        os.path.join(prefix, "weights", run_name, file_name),
-    )
+    torch.save(state_dict, prefix / "weights" / run_name / file_name)
 
 
 def load_state_dict(
-    model: Union[nn.Module, dict[str, nn.Module]],
-    optimizer: Union[optim.Optimizer, dict[str, optim.Optimizer]],
-    prefix: str,
+    model: nn.Module | dict[str, nn.Module],
+    optimizer: optim.Optimizer | dict[str, optim.Optimizer],
+    prefix: str | Path,
     run_name: str,
     file_name: str,
     device: torch.device,
-) -> tuple[int, Optional[str]]:
-    path = os.path.join(prefix, "weights", run_name, file_name)
-    if os.path.exists(path):
+) -> tuple[int, str | None]:
+    if isinstance(prefix, str):
+        prefix = Path(prefix)
+
+    path = prefix / "weights" / run_name / file_name
+
+    if path.exists():
         state_dict = torch.load(path, weights_only=True, map_location=device)
 
         epoch = state_dict.get("epoch")
@@ -123,14 +132,17 @@ def load_state_dict(
     return -1, None
 
 
-def setup_logging(run_name: str, prefix: str = "."):
-    os.makedirs(os.path.join(prefix, "weights"), exist_ok=True)
-    os.makedirs(os.path.join(prefix, "results"), exist_ok=True)
-    os.makedirs(os.path.join(prefix, "weights", run_name), exist_ok=True)
-    os.makedirs(os.path.join(prefix, "results", run_name), exist_ok=True)
+def setup_logging(run_name: str, prefix: str | Path = ".") -> None:
+    if isinstance(prefix, str):
+        prefix = Path(prefix)
+
+    (prefix / "weights").mkdir(parents=True, exist_ok=True)
+    (prefix / "results").mkdir(parents=True, exist_ok=True)
+    (prefix / "weights" / run_name).mkdir(parents=True, exist_ok=True)
+    (prefix / "results" / run_name).mkdir(parents=True, exist_ok=True)
 
 
-def fill_tail_dims(x: torch.Tensor, x_like: torch.Tensor):
+def fill_tail_dims(x: torch.Tensor, x_like: torch.Tensor) -> torch.Tensor:
     return x[(...,) + (None,) * (x_like.dim() - x.dim())]
 
 
@@ -138,7 +150,7 @@ def add_prefixed_arguments(
     src_parser: argparse.ArgumentParser,
     dst_parser: argparse.ArgumentParser,
     prefix: str,
-):
+) -> None:
     for action in src_parser._actions:
         if not action.option_strings:
             continue
@@ -166,6 +178,6 @@ def add_prefixed_namespace(
     src_args: argparse.Namespace,
     dst_args: argparse.Namespace,
     prefix: str,
-):
+) -> None:
     for key, value in vars(src_args).items():
         setattr(dst_args, f"{prefix}{key}", value)

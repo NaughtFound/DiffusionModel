@@ -1,11 +1,12 @@
-from functools import wraps
 from collections.abc import Callable
+from functools import partial, wraps
+from typing import Self
 
 
-class KWargs(object):
-    def __new__(cls):
+class KWargs:
+    def __new__(cls) -> Self:
         if not hasattr(cls, "instance"):
-            cls.instance = super(KWargs, cls).__new__(cls)
+            cls.instance = super().__new__(cls)
         return cls.instance
 
     @staticmethod
@@ -19,7 +20,7 @@ class KWargs(object):
         return kwargs
 
     @staticmethod
-    def drop(func: Callable):
+    def drop(func: Callable) -> None:
         kw = KWargs()
         key = func.__qualname__
 
@@ -27,20 +28,22 @@ class KWargs(object):
             delattr(kw, key)
 
     @staticmethod
-    def insert(func: Callable, **kwargs):
+    def insert(func: Callable, **kwargs) -> None:
         kw = KWargs()
         key = func.__qualname__
 
         setattr(kw, key, kwargs)
 
 
-def with_kwargs(func: Callable):
+def with_kwargs[**P, R](func: Callable[P, R]) -> Callable[P, R]:
     key = func.__qualname__
 
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args, **kwargs) -> R:
         additional_kwargs = KWargs.get(key)
 
-        return func(*args, **kwargs, **additional_kwargs)
+        fn = partial(func, **additional_kwargs)
+
+        return fn(*args, **kwargs)
 
     return wrapper

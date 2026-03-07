@@ -1,18 +1,22 @@
-from typing import Any, Literal, Sequence
-import torch
-from torch import optim, nn
-from torch.utils.data import DataLoader
+import argparse
 import logging
+from collections.abc import Sequence
+from typing import Any
+
+import torch
+from torch import nn, optim
+from torch.utils.data import DataLoader
 from tqdm import tqdm
-from models.vae.base import VAE
-from models.vae.vq import VAE_VQ_Params, VAE_VQ
-from models.vae.kl import VAE_KL_Params, VAE_KL
-from trainer.grad import GradientTrainer, GradientTrainerState
+
 import utils
+from models.vae.base import VAE
+from models.vae.kl import VAEKL, VAEKLParams
+from models.vae.vq import VAEVQ, VAEVQParams
+from trainer.grad import GradientTrainer, GradientTrainerState
 
 
 class VAETrainer(GradientTrainer):
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
         self.global_step = 0
@@ -25,7 +29,7 @@ class VAETrainer(GradientTrainer):
         args = self.args
 
         if args.model_type == "vq":
-            params = VAE_VQ_Params(args.device)
+            params = VAEVQParams(args.device)
             params.in_channels = args.in_channels
             params.hidden_dim = args.hidden_dim
             params.latent_channels = args.latent_channels
@@ -34,10 +38,10 @@ class VAETrainer(GradientTrainer):
             params.n_res_layers = args.n_res_layers
             params.beta = args.beta
 
-            return VAE_VQ(params)
+            return VAEVQ(params)
 
         if args.model_type == "kl":
-            params = VAE_KL_Params(args.device)
+            params = VAEKLParams(args.device)
             params.in_channels = args.in_channels
             params.out_channels = args.in_channels
             params.latent_channels = args.latent_channels
@@ -55,9 +59,12 @@ class VAETrainer(GradientTrainer):
             params.disc_conditional = args.disc_conditional
             params.disc_loss = args.disc_loss
 
-            return VAE_KL(params)
+            return VAEKL(params)
 
-    def load_last_checkpoint(self):
+        msg = "model type not found"
+        raise ValueError(msg)
+
+    def load_last_checkpoint(self) -> GradientTrainerState:
         args = self.args
 
         vae = self.create_model().to(args.device)
@@ -65,12 +72,14 @@ class VAETrainer(GradientTrainer):
         if args.model_type == "vq":
             optimizer = optim.Adam(vae.parameters(), lr=args.lr)
 
-        if args.model_type == "kl" and isinstance(vae, VAE_KL):
+        elif args.model_type == "kl" and isinstance(vae, VAEKL):
             vae_params = nn.ParameterList()
             vae_params.extend(list(vae.vae.encoder.parameters()))
             vae_params.extend(list(vae.vae.decoder.parameters()))
-            vae_params.extend(list(vae.vae.quant_conv.parameters()))
-            vae_params.extend(list(vae.vae.post_quant_conv.parameters()))
+            if vae.vae.quant_conv is not None:
+                vae_params.extend(list(vae.vae.quant_conv.parameters()))
+            if vae.vae.post_quant_conv is not None:
+                vae_params.extend(list(vae.vae.post_quant_conv.parameters()))
 
             optimizer = {
                 "AdamW_vae": optim.Adam(vae_params, lr=args.lr),
@@ -79,6 +88,9 @@ class VAETrainer(GradientTrainer):
                     lr=args.lr,
                 ),
             }
+        else:
+            msg = "model type not found"
+            raise ValueError(msg)
 
         last_epoch = -1
         run_id = None
@@ -105,33 +117,37 @@ class VAETrainer(GradientTrainer):
             run_id=run_id,
         )
 
-    def calc_var(self, dataloader: DataLoader) -> torch.Tensor:
+    def calc_var(self, dataloader: DataLoader) -> float:
         sm = 0.0
         sm_sq = 0.0
         total = 0
         for batch in tqdm(dataloader, desc="Calculating variance of input dataset"):
+            x = batch
             if isinstance(batch, Sequence):
-                batch = batch[0]
+                x = batch[0]
 
-            batch = batch.to(self.args.device)
+            x = x.to(self.args.device)
 
-            total += len(batch)
-            sm += batch.sum(0)
-            sm_sq += (batch**2).sum(0)
+            total += len(x)
+            sm += x.sum(0)
+            sm_sq += (x**2).sum(0)
 
         mean = sm / total
         mean_sq = sm_sq / total
 
         return mean_sq - mean**2
 
-    def pre_train(self, state: GradientTrainerState):
+    def pre_train(self, state: GradientTrainerState) -> None:
         if self.args.model_type == "vq":
             dataloader = state.get_param("train_dataloader")
+            if dataloader is None:
+                return
 
             self.var = self.calc_var(dataloader)
 
     def train_step(
         self,
+        *,
         model: VAE,
         batch: Any,
         optim_name: str,
@@ -147,37 +163,40 @@ class VAETrainer(GradientTrainer):
         images = batch.to(args.device)
 
         if args.model_type == "vq":
-            loss = model.calc_loss(x=images, var=self.var)
+            return model.calc_loss(x=images, var=self.var)
 
         if args.model_type == "kl":
-            loss = model.calc_loss(
+            return model.calc_loss(
                 x=images,
                 optimizer_idx=self.optimizer_idx.get(optim_name, 0),
                 global_step=self.global_step,
             )
 
-        return loss
+        msg = "model type not found"
+        raise ValueError(msg)
 
-    def save_step(self, state: GradientTrainerState):
+    def save_step(self, state: GradientTrainerState) -> None:
         args = self.args
 
         batch = state.get_param("batch")
 
-        if isinstance(batch, Sequence):
-            batch = batch[0]
+        if batch is not None:
+            if isinstance(batch, Sequence):
+                batch = batch[0]
 
-        batch = batch.to(args.device)
+            batch = batch.to(args.device)
 
-        logging.info(f"Sampling for epoch {state.epoch + 1}")
-        state.model.eval()
-        sampled_images = state.model(batch)
-        state.model.train()
-        utils.save_images(
-            sampled_images,
-            args.prefix,
-            args.run_name,
-            f"{state.epoch + 1}.jpg",
-        )
+            logging.info(f"Sampling for epoch {state.epoch + 1}")
+            state.model.eval()
+            sampled_images = state.model(batch)
+            state.model.train()
+            utils.save_images(
+                sampled_images,
+                args.prefix,
+                args.run_name,
+                f"{state.epoch + 1}.jpg",
+            )
+
         logging.info(f"Saving results for epoch {state.epoch + 1}")
         utils.save_state_dict(
             model=state.model,
@@ -189,12 +208,12 @@ class VAETrainer(GradientTrainer):
             run_id=state.run_id,
         )
 
-    def pre_inference(self, state: GradientTrainerState[VAE]):
+    def pre_inference(self, state: GradientTrainerState[VAE]) -> None:
         self.vae = state.model
         self.vae.eval()
 
     @staticmethod
-    def create_default_args():
+    def create_default_args() -> argparse.Namespace:
         args = super(VAETrainer, VAETrainer).create_default_args()
 
         args.run_name = "VAE-VQ"
@@ -223,7 +242,7 @@ class VAETrainer(GradientTrainer):
         return args
 
     @staticmethod
-    def get_arg_parser():
+    def get_arg_parser() -> argparse.ArgumentParser:
         parser = super(VAETrainer, VAETrainer).get_arg_parser()
 
         d_args = VAETrainer.create_default_args()
@@ -274,10 +293,6 @@ class VAETrainer(GradientTrainer):
             type=bool,
             default=d_args.disc_conditional,
         )
-        parser.add_argument(
-            "--disc_loss",
-            type=Literal["hinge", "vanilla"],
-            default=d_args.disc_loss,
-        )
+        parser.add_argument("--disc_loss", type=str, default=d_args.disc_loss)
 
         return parser

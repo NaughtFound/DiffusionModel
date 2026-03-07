@@ -1,19 +1,21 @@
-from typing import Literal, Optional
+from typing import Literal
+
 import torch
 from diffusers.models import AutoencoderKL
 from diffusers.models.autoencoders.vae import DiagonalGaussianDistribution
 
 from models.common.params import ModelParams
+
 from .base import VAE
 from .modules import LPIPSWithDiscriminator
 
 
-class VAE_KL_Params(ModelParams):
+class VAEKLParams(ModelParams):
     in_channels: int
     out_channels: int
     latent_channels: int
-    pretrained_model_name_or_path: Optional[str]
-    lpips_model_path: Optional[str]
+    pretrained_model_name_or_path: str | None
+    lpips_model_path: str | None
     disc_start: int
     log_var_init: float
     kl_weight: float
@@ -26,7 +28,7 @@ class VAE_KL_Params(ModelParams):
     disc_conditional: bool
     disc_loss: Literal["hinge", "vanilla"]
 
-    def __init__(self, device: torch.device):
+    def __init__(self, device: torch.device) -> None:
         super().__init__(device)
 
         self.in_channels = 3
@@ -47,8 +49,8 @@ class VAE_KL_Params(ModelParams):
         self.disc_loss = "hinge"
 
 
-class VAE_KL(VAE):
-    def __init__(self, args: VAE_KL_Params):
+class VAEKL(VAE):
+    def __init__(self, args: VAEKLParams) -> None:
         super().__init__()
 
         self.args = args
@@ -77,42 +79,50 @@ class VAE_KL(VAE):
             disc_loss=args.disc_loss,
         )
 
-    def encode(self, x: torch.Tensor, return_dist: bool = False):
+    def encode(
+        self,
+        x: torch.Tensor,
+        *,
+        return_dist: bool = False,
+    ) -> torch.Tensor | DiagonalGaussianDistribution:
         enc_dist = self.vae.encode(x, return_dict=False)[0]
 
         if not isinstance(enc_dist, DiagonalGaussianDistribution):
-            raise TypeError("encoded x is not DiagonalGaussianDistribution")
+            msg = "encoded x is not DiagonalGaussianDistribution"
+            raise TypeError(msg)
 
         if return_dist:
             return enc_dist
 
         return enc_dist.sample()
 
-    def decode(self, z: torch.Tensor):
+    def decode(self, z: torch.Tensor) -> torch.Tensor:
         dec_tensor = self.vae.decode(z, return_dict=False)[0]
 
         if not isinstance(dec_tensor, torch.Tensor):
-            raise TypeError("decoded z is not Tensor")
+            msg = "decoded z is not Tensor"
+            raise TypeError(msg)
 
         return dec_tensor
 
-    def sample(self, n: int):
-        raise NotImplementedError("sampling is not implemented for kl.")
+    def sample(self, n: int) -> torch.Tensor:
+        msg = "sampling is not implemented for kl."
+        raise NotImplementedError(msg)
 
     @torch.no_grad()
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         z = self.encode(x)
-        x_hat = self.decode(z)
+        return self.decode(z)
 
-        return x_hat
-
-    def calc_loss(self, x: torch.Tensor, optimizer_idx: int, global_step: int):
+    def calc_loss(
+        self, x: torch.Tensor, optimizer_idx: int, global_step: int
+    ) -> torch.Tensor:
         last_layer = self.vae.decoder.conv_out.weight
 
         z_dist = self.encode(x, return_dist=True)
         x_hat = self.decode(z_dist.sample())
 
-        loss = self.loss(
+        return self.loss(
             inputs=x,
             reconstructions=x_hat,
             posteriors=z_dist,
@@ -120,5 +130,3 @@ class VAE_KL(VAE):
             global_step=global_step,
             last_layer=last_layer,
         )
-
-        return loss

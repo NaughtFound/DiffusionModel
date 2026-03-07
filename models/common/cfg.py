@@ -1,4 +1,6 @@
-from typing import Any, Callable, Optional, Protocol
+from collections.abc import Callable
+from typing import Any, Protocol
+
 import torch
 
 
@@ -13,17 +15,18 @@ class HasCFGBackBone(Protocol):
         t: torch.Tensor,
         y: torch.Tensor,
         cfg_scale: float,
-        y_null: Optional[torch.Tensor] = None,
+        y_null: torch.Tensor | None = None,
+        *,
         fast_cfg: bool = True,
         **kwargs,
     ) -> torch.Tensor:
-        if y_null is None and fast_cfg:
-            y_null = torch.zeros_like(y)
-
         if t.dim() == 0:
             t = t.expand(len(x))
 
         if fast_cfg:
+            if y_null is None:
+                y_null = torch.zeros_like(y)
+
             x_in = torch.cat([x, x], dim=0)
             t_in = torch.cat([t, t], dim=0)
             y_in = torch.cat([y_null, y], dim=0)

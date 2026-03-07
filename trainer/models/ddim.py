@@ -1,6 +1,10 @@
+import argparse
+
 from torch import nn
+
 from models.diffusion.base import Diffusion
-from models.diffusion.ddim import DDIM_Params, DDIM
+from models.diffusion.ddim import DDIM, DDIMParams
+
 from .ddpm import DDPMTrainer
 
 
@@ -9,7 +13,7 @@ class DDIMTrainer(DDPMTrainer):
         args = self.args
 
         if args.model_type == "sde":
-            params = DDIM_Params(args.device)
+            params = DDIMParams(args.device)
             params.eps_theta = eps_theta
             params.sigma_min = args.sigma_min
             params.sigma_max = args.sigma_max
@@ -19,8 +23,11 @@ class DDIMTrainer(DDPMTrainer):
 
             return DDIM(params)
 
+        msg = "model type not found"
+        raise ValueError(msg)
+
     @staticmethod
-    def create_default_args():
+    def create_default_args() -> argparse.Namespace:
         args = super(DDIMTrainer, DDIMTrainer).create_default_args()
 
         args.run_name = "DDIM"
@@ -31,7 +38,7 @@ class DDIMTrainer(DDPMTrainer):
         return args
 
     @staticmethod
-    def get_arg_parser():
+    def get_arg_parser() -> argparse.ArgumentParser:
         parser = super(DDIMTrainer, DDIMTrainer).get_arg_parser()
 
         d_args = DDIMTrainer.create_default_args()

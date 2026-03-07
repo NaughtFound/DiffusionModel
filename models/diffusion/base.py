@@ -5,7 +5,7 @@ import torch
 
 
 class Diffusion(ABC):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.training = False
@@ -34,8 +34,8 @@ class Diffusion(ABC):
     def calc_loss(self, *args: Any, **kwargs: Any) -> torch.Tensor:
         pass
 
-    def eval(self):
+    def eval(self) -> None:
         self.training = False
 
-    def train(self):
+    def train(self) -> None:
         self.training = True

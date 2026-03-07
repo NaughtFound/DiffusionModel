@@ -1,21 +1,22 @@
 import argparse
 import logging
-from trainer.base import Trainer
+
 from kaizo import ConfigParser
 from kaizo.utils import FnWithKwargs
 
+from trainer.base import Trainer
 
-def parse_key_value_args(args: list[str]) -> dict[str]:
+
+def parse_key_value_args(args: list[str]) -> dict[str, str]:
     result = {}
     key = None
     for arg in args:
         if arg.startswith("--"):
             key = arg.lstrip("-")
             result[key] = True
-        else:
-            if key:
-                result[key] = arg
-                key = None
+        elif key:
+            result[key] = arg
+            key = None
     return result
 
 
@@ -40,7 +41,8 @@ if __name__ == "__main__":
     if args.module is not None:
         for module_name in args.module:
             if module_name not in config:
-                raise KeyError(f"{module_name} module not found")
+                msg = f"{module_name} module not found"
+                raise KeyError(msg)
 
             logging.info(f"Running {module_name}")
 

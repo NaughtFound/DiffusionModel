@@ -1,12 +1,13 @@
 import torch
-import torch.nn as nn
+from torch import nn
 
 from models.common.params import ModelParams
-from .base import VAE
+
 from . import modules as m
+from .base import VAE
 
 
-class VAE_VQ_Params(ModelParams):
+class VAEVQParams(ModelParams):
     in_channels: int
     latent_channels: int
     hidden_dim: int
@@ -15,7 +16,7 @@ class VAE_VQ_Params(ModelParams):
     n_res_layers: int
     beta: float
 
-    def __init__(self, device: torch.device):
+    def __init__(self, device: torch.device) -> None:
         super().__init__(device)
 
         self.in_channels = 3
@@ -27,15 +28,16 @@ class VAE_VQ_Params(ModelParams):
         self.beta = 0.25
 
 
-class VAE_VQ_Encoder(nn.Module):
+class VAEVQEncoder(nn.Module):
     def __init__(
         self,
         in_channels: int,
         hidden_channels: int,
         n_res_layers: int,
         res_h_dim: int,
-    ):
-        super(VAE_VQ_Encoder, self).__init__()
+    ) -> None:
+        super().__init__()
+
         kernel = 4
         stride = 2
         self.conv_stack = nn.Sequential(
@@ -74,7 +76,7 @@ class VAE_VQ_Encoder(nn.Module):
         return self.conv_stack(x)
 
 
-class VAE_VQ_Decoder(nn.Module):
+class VAEVQDecoder(nn.Module):
     def __init__(
         self,
         in_channels: int,
@@ -82,8 +84,9 @@ class VAE_VQ_Decoder(nn.Module):
         out_channels: int,
         n_res_layers: int,
         res_h_dim: int,
-    ):
-        super(VAE_VQ_Decoder, self).__init__()
+    ) -> None:
+        super().__init__()
+
         kernel = 4
         stride = 2
 
@@ -122,13 +125,13 @@ class VAE_VQ_Decoder(nn.Module):
         return self.inverse_conv_stack(x)
 
 
-class VAE_VQ(VAE):
-    def __init__(self, args: VAE_VQ_Params):
+class VAEVQ(VAE):
+    def __init__(self, args: VAEVQParams) -> None:
         super().__init__()
 
         self.args = args
 
-        self.encoder = VAE_VQ_Encoder(
+        self.encoder = VAEVQEncoder(
             in_channels=self.args.in_channels,
             hidden_channels=self.args.hidden_dim,
             n_res_layers=self.args.n_res_layers,
@@ -145,7 +148,7 @@ class VAE_VQ(VAE):
             emb_dim=self.args.latent_channels,
             beta=self.args.beta,
         )
-        self.decoder = VAE_VQ_Decoder(
+        self.decoder = VAEVQDecoder(
             in_channels=self.args.latent_channels,
             hidden_channels=self.args.hidden_dim,
             out_channels=self.args.in_channels,
@@ -155,17 +158,14 @@ class VAE_VQ(VAE):
 
     def encode(self, x: torch.Tensor) -> torch.Tensor:
         z_e = self.encoder(x)
-        z_e = self.pre_quantizer(z_e)
+        return self.pre_quantizer(z_e)
 
-        return z_e
+    def decode(self, z: torch.Tensor) -> torch.Tensor:
+        return self.decoder(z)
 
-    def decode(self, z: torch.Tensor):
-        x_hat = self.decoder(z)
-
-        return x_hat
-
-    def sample(self, n: int):
-        raise NotImplementedError("sampling is not implemented for vq.")
+    def sample(self, n: int) -> torch.Tensor:
+        msg = "sampling is not implemented for vq."
+        raise NotImplementedError(msg)
 
     @torch.no_grad()
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -174,11 +174,9 @@ class VAE_VQ(VAE):
 
         z_q = vq_dict.get("z_q", torch.zeros_like(z_e))
 
-        x_hat = self.decode(z_q)
+        return self.decode(z_q)
 
-        return x_hat
-
-    def calc_loss(self, x: torch.Tensor, var: torch.Tensor):
+    def calc_loss(self, x: torch.Tensor, var: torch.Tensor) -> torch.Tensor:
         z_e = self.encode(x)
         vq_dict = self.quantizer(z_e)
 
@@ -189,6 +187,4 @@ class VAE_VQ(VAE):
         recon_loss = torch.mean((x_hat - x) ** 2 / var)
         embed_loss = vq_dict.get("loss", torch.zeros_like(recon_loss))
 
-        loss = recon_loss + embed_loss
-
-        return loss
+        return recon_loss + embed_loss

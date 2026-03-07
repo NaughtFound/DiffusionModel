@@ -1,10 +1,10 @@
-from typing import Optional
 import torch
-import torch.nn as nn
-from timm.models.vision_transformer import PatchEmbed
+from timm.layers.patch_embed import PatchEmbed
+from torch import nn
 
-from models.common.mixin import ModelMixin
 from models.common.cfg import HasCFGBackBone
+from models.common.mixin import ModelMixin
+
 from . import modules as m
 
 
@@ -18,8 +18,9 @@ class DiT(nn.Module, ModelMixin, HasCFGBackBone):
         depth: int = 28,
         num_heads: int = 16,
         mlp_ratio: float = 4.0,
+        *,
         learn_sigma: bool = True,
-    ):
+    ) -> None:
         super().__init__()
 
         self.in_channels = in_channels
@@ -64,8 +65,8 @@ class DiT(nn.Module, ModelMixin, HasCFGBackBone):
 
         self.initialize_weights()
 
-    def initialize_weights(self):
-        def _basic_init(module: nn.Module):
+    def initialize_weights(self) -> None:
+        def _basic_init(module: nn.Module) -> None:
             if isinstance(module, nn.Linear):
                 torch.nn.init.xavier_uniform_(module.weight)
                 if module.bias is not None:
@@ -95,24 +96,22 @@ class DiT(nn.Module, ModelMixin, HasCFGBackBone):
         nn.init.constant_(self.final_layer.linear.weight, 0)
         nn.init.constant_(self.final_layer.linear.bias, 0)
 
-    def unpatchify(self, x: torch.Tensor):
+    def unpatchify(self, x: torch.Tensor) -> torch.Tensor:
         c = self.out_channels
         p = self.x_embed.patch_size[0]
         h = w = int(x.shape[1] ** 0.5)
         assert h * w == x.shape[1]
 
         x = x.reshape(shape=(x.shape[0], h, w, p, p, c))
-        x = torch.einsum("nhwpqc->nchpwq", x)
-        imgs = x.reshape(shape=(x.shape[0], c, h * p, h * p))
-
-        return imgs
+        x = torch.einsum("nhwpqc->nchpwq", x)  # cspell:words nhwpqc nchpwq
+        return x.reshape(shape=(x.shape[0], c, h * p, h * p))
 
     def forward(
         self,
         x: torch.Tensor,
         t: torch.Tensor,
-        y: Optional[torch.Tensor] = None,
-    ):
+        y: torch.Tensor | None = None,
+    ) -> torch.Tensor:
         if t.dim() == 0:
             t = t.expand(len(x))
 
@@ -126,6 +125,4 @@ class DiT(nn.Module, ModelMixin, HasCFGBackBone):
             x = block(x, t)
 
         x = self.final_layer(x, t)
-        x = self.unpatchify(x)
-
-        return x
+        return self.unpatchify(x)

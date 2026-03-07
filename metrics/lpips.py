@@ -1,17 +1,20 @@
-from typing import Callable, Literal, Optional
+from collections.abc import Callable
+from typing import Literal
+
+import lpips
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-import lpips
+
 from .base import Metric, MetricMeta
 
 
 class LPIPSMeta(MetricMeta):
-    net_type: Optional[Literal["alex", "vgg"]]
-    transform: Optional[Callable[[torch.Tensor], torch.Tensor]]
-    forward_method: Callable[[torch.Tensor, Optional[torch.Tensor]], torch.Tensor]
+    net_type: Literal["alex", "vgg"]
+    transform: Callable[[torch.Tensor], torch.Tensor] | None
+    forward_method: Callable[[torch.Tensor, torch.Tensor | None], torch.Tensor]
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.net_type = "alex"
@@ -19,7 +22,7 @@ class LPIPSMeta(MetricMeta):
 
 
 class LPIPS(Metric):
-    def __init__(self, meta: LPIPSMeta):
+    def __init__(self, meta: LPIPSMeta) -> None:
         super().__init__(meta)
 
         self.meta = meta
@@ -29,7 +32,7 @@ class LPIPS(Metric):
         self.model.to(self.meta.device)
 
     @torch.no_grad()
-    def calc(self, dataloader: DataLoader):
+    def calc(self, dataloader: DataLoader) -> torch.Tensor:
         scores = []
 
         for batch in tqdm(dataloader, desc="Calculating"):

@@ -1,13 +1,15 @@
 import torch
-import torch.nn as nn
-import torchsde
 import torchdiffeq
+import torchsde
+from torch import nn
+
 from models.common.params import ModelParams
 from utils import fill_tail_dims
+
 from .base import Diffusion
 
 
-class DDPM_Params(ModelParams):
+class DDPMParams(ModelParams):
     eps_theta: nn.Module
     beta_min: float
     beta_max: float
@@ -15,7 +17,7 @@ class DDPM_Params(ModelParams):
     t1: float
     input_size: tuple[int, int, int]
 
-    def __init__(self, device: torch.device):
+    def __init__(self, device: torch.device) -> None:
         super().__init__(device)
 
         self.eps_theta = None
@@ -28,8 +30,8 @@ class DDPM_Params(ModelParams):
         self.input_size = (1, 28, 28)
 
 
-class DDPM_Forward(nn.Module):
-    def __init__(self, args: DDPM_Params):
+class DDPMForward(nn.Module):
+    def __init__(self, args: DDPMParams) -> None:
         super().__init__()
 
         self.args = args
@@ -51,17 +53,13 @@ class DDPM_Forward(nn.Module):
         int_t_0 = self._indefinite_int(self.args.t0)
 
         mean_coef = (-0.5 * (int_t - int_t_0)).exp()
-        mean = x_0 * fill_tail_dims(mean_coef, x_0)
-
-        return mean
+        return x_0 * fill_tail_dims(mean_coef, x_0)
 
     def analytical_var(self, t: torch.Tensor) -> torch.Tensor:
         int_t = self._indefinite_int(t)
         int_t_0 = self._indefinite_int(self.args.t0)
 
-        var = 1 - (-int_t + int_t_0).exp()
-
-        return var
+        return 1 - (-int_t + int_t_0).exp()
 
     @torch.no_grad()
     def analytical_sample(self, x_0: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
@@ -101,15 +99,15 @@ class DDPM_Forward(nn.Module):
         return self.analytical_sample(x_0, t)
 
 
-class DDPM_Reverse(nn.Module):
+class DDPMReverse(nn.Module):
     noise_type = "diagonal"
     sde_type = "stratonovich"
 
     def __init__(
         self,
-        forward_sde: DDPM_Forward,
-        args: DDPM_Params,
-    ):
+        forward_sde: DDPMForward,
+        args: DDPMParams,
+    ) -> None:
         super().__init__()
 
         self.forward_sde = forward_sde
@@ -146,6 +144,7 @@ class DDPM_Reverse(nn.Module):
         self,
         x_t: torch.Tensor,
         dt: float = 1e-2,
+        *,
         use_sde: bool = True,
     ) -> torch.Tensor:
         t = torch.tensor(
@@ -174,47 +173,47 @@ class DDPM_Reverse(nn.Module):
 
 
 class DDPM(Diffusion):
-    def __init__(self, args: DDPM_Params):
+    def __init__(self, args: DDPMParams) -> None:
         super().__init__()
 
         self.args = args
 
-        self.f_sde = DDPM_Forward(args)
-        self.r_sde = DDPM_Reverse(self.f_sde, args)
+        self.f_sde = DDPMForward(args)
+        self.r_sde = DDPMReverse(self.f_sde, args)
 
-    def t(self, n: int):
+    def t(self, n: int) -> torch.Tensor:
         r = torch.rand((n,), device=self.args.device)
         return self.args.t0 + (self.args.t1 - self.args.t0) * r
 
-    def forward(self, x_0: torch.Tensor, t: torch.Tensor):
+    def forward(self, x_0: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         return self.f_sde(x_0, t)
 
-    def reverse(self, x_t: torch.Tensor, use_sde: bool = True):
+    def reverse(self, x_t: torch.Tensor, *, use_sde: bool = True) -> torch.Tensor:
         return self.r_sde(x_t, use_sde=use_sde)
 
-    def sample(self, n: int, use_sde: bool = True):
+    def sample(self, n: int, *, use_sde: bool = True) -> torch.Tensor:
         x_t = torch.randn(size=(n, *self.args.input_size), device=self.args.device)
 
         return self.r_sde(x_t, use_sde=use_sde)
 
-    def predict_noise(self, x_t: torch.Tensor, t: torch.Tensor):
+    def predict_noise(self, x_t: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         return self.f_sde.eps_theta(t, x_t)
 
-    def eval(self):
+    def eval(self) -> None:
         super().eval()
 
         self.f_sde.eval()
         self.r_sde.eval()
         self.args.eps_theta.eval()
 
-    def train(self):
+    def train(self) -> None:
         super().train()
 
         self.f_sde.train()
         self.r_sde.train()
         self.args.eps_theta.train()
 
-    def calc_loss(self, x_0: torch.Tensor, t: torch.Tensor):
+    def calc_loss(self, x_0: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         x_t = self.f_sde.analytical_sample(x_0, t)
         lambda_t = self.f_sde.analytical_var(t)
 

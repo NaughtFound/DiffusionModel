@@ -1,23 +1,24 @@
-from typing import Optional
 import torch
 import torchdiffeq
+
 from utils import fill_tail_dims
-from .ddpm import DDPM_Params, DDPM_Forward, DDPM_Reverse, DDPM
+
+from .ddpm import DDPM, DDPMForward, DDPMParams, DDPMReverse
 
 
-class DDIM_Params(DDPM_Params):
+class DDIMParams(DDPMParams):
     sigma_max: float
     sigma_min: float
 
-    def __init__(self, device: torch.device):
+    def __init__(self, device: torch.device) -> None:
         super().__init__(device)
 
         self.sigma_max = 50
         self.sigma_min = 0.01
 
 
-class DDIM_Forward(DDPM_Forward):
-    def __init__(self, args: DDIM_Params):
+class DDIMForward(DDPMForward):
+    def __init__(self, args: DDIMParams) -> None:
         super().__init__(args)
 
         self.args = args
@@ -58,7 +59,7 @@ class DDIM_Forward(DDPM_Forward):
     def forward(
         self,
         x_0: torch.Tensor,
-        t: Optional[float] = None,
+        t: float | None = None,
         dt: float = 1e-2,
     ) -> torch.Tensor:
         if t is None:
@@ -81,15 +82,15 @@ class DDIM_Forward(DDPM_Forward):
         return x_t[-1]
 
 
-class DDIM_Reverse(DDPM_Reverse):
+class DDIMReverse(DDPMReverse):
     noise_type = "diagonal"
     sde_type = "stratonovich"
 
     def __init__(
         self,
-        forward_sde: DDIM_Forward,
-        args: DDIM_Params,
-    ):
+        forward_sde: DDIMForward,
+        args: DDIMParams,
+    ) -> None:
         super().__init__(forward_sde, args)
 
         self.forward_sde = forward_sde
@@ -102,16 +103,16 @@ class DDIM_Reverse(DDPM_Reverse):
 
 
 class DDIM(DDPM):
-    def __init__(self, args: DDIM_Params):
+    def __init__(self, args: DDIMParams) -> None:
         super().__init__(args)
 
         self.args = args
 
-        self.f_sde = DDIM_Forward(args)
-        self.r_sde = DDIM_Reverse(self.f_sde, args)
+        self.f_sde = DDIMForward(args)
+        self.r_sde = DDIMReverse(self.f_sde, args)
 
-    def forward(self, x_0: torch.Tensor, t: Optional[float] = None):
+    def forward(self, x_0: torch.Tensor, t: float | None = None) -> torch.Tensor:
         return super().forward(x_0, t)
 
-    def reverse(self, x_t: torch.Tensor, use_sde: bool = False):
+    def reverse(self, x_t: torch.Tensor, *, use_sde: bool = False) -> torch.Tensor:
         return super().reverse(x_t, use_sde=use_sde)

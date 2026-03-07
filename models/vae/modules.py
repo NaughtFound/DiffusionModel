@@ -1,13 +1,14 @@
-from typing import Literal, Optional
+from typing import Literal
+
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from lpips import LPIPS
+import torch.nn.functional as f
 from diffusers.models.autoencoders.vae import DiagonalGaussianDistribution
+from lpips import LPIPS
+from torch import nn
 
 
 class VectorQuantizer(nn.Module):
-    def __init__(self, n_emb: int, emb_dim: int, beta: float):
+    def __init__(self, n_emb: int, emb_dim: int, beta: float) -> None:
         super().__init__()
         self.n_emb = n_emb
         self.emb_dim = emb_dim
@@ -16,7 +17,10 @@ class VectorQuantizer(nn.Module):
         self.embedding = nn.Embedding(self.n_emb, self.emb_dim)
         self.embedding.weight.data.uniform_(-1.0 / self.n_emb, 1.0 / self.n_emb)
 
-    def _calc_encodings(self, z: torch.Tensor):
+    def _calc_encodings(
+        self,
+        z: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         z_flattened = z.view(-1, self.emb_dim)
 
         d = (
@@ -39,11 +43,9 @@ class VectorQuantizer(nn.Module):
     def _calc_loss(self, z: torch.Tensor, z_q: torch.Tensor) -> torch.Tensor:
         q_latent_loss = torch.mean((z_q - z.detach()) ** 2)
         e_latent_loss = torch.mean((z_q.detach() - z) ** 2)
-        loss = q_latent_loss + self.beta * e_latent_loss
+        return q_latent_loss + self.beta * e_latent_loss
 
-        return loss
-
-    def forward(self, z: torch.Tensor):
+    def forward(self, z: torch.Tensor) -> dict[str, torch.Tensor]:
         z = z.permute(0, 2, 3, 1).contiguous()
 
         min_encoding_indices, min_encodings, perplexity = self._calc_encodings(z)
@@ -71,10 +73,10 @@ class ResidualLayer(nn.Module):
         in_channels: int,
         out_channels: int,
         res_h_dim: int,
-    ):
+    ) -> None:
         super().__init__()
         self.res_block = nn.Sequential(
-            nn.ReLU(True),
+            nn.ReLU(inplace=True),
             nn.Conv2d(
                 in_channels=in_channels,
                 out_channels=res_h_dim,
@@ -83,7 +85,7 @@ class ResidualLayer(nn.Module):
                 padding=1,
                 bias=False,
             ),
-            nn.ReLU(True),
+            nn.ReLU(inplace=True),
             nn.Conv2d(
                 in_channels=res_h_dim,
                 out_channels=out_channels,
@@ -108,9 +110,7 @@ class ResidualLayer(nn.Module):
         if self.skip_proj is not None:
             x = self.skip_proj(x)
 
-        x = x + self.res_block(x)
-
-        return x
+        return x + self.res_block(x)
 
 
 class ResidualStack(nn.Module):
@@ -120,8 +120,8 @@ class ResidualStack(nn.Module):
         out_channels: int,
         res_h_dim: int,
         n_res_layers: int,
-        hidden_dim: int = None,
-    ):
+        hidden_dim: int | None = None,
+    ) -> None:
         super().__init__()
         self.n_res_layers = n_res_layers
         self.stack = nn.Sequential()
@@ -149,9 +149,7 @@ class ResidualStack(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.stack(x)
-        x = F.relu(x)
-
-        return x
+        return f.relu(x)
 
 
 class PatchGANDiscriminator(nn.Module):
@@ -160,7 +158,7 @@ class PatchGANDiscriminator(nn.Module):
         in_channels: int = 3,
         n_filters: int = 64,
         n_layers: int = 3,
-    ):
+    ) -> None:
         super().__init__()
 
         kernel_size = 4
@@ -174,7 +172,7 @@ class PatchGANDiscriminator(nn.Module):
                 stride=2,
                 padding=padding,
             ),
-            nn.LeakyReLU(0.2, True),
+            nn.LeakyReLU(0.2, inplace=True),
         ]
 
         nf_mul = 1
@@ -192,7 +190,7 @@ class PatchGANDiscriminator(nn.Module):
                     bias=False,
                 ),
                 nn.BatchNorm2d(num_features=n_filters * nf_mul),
-                nn.LeakyReLU(0.2, True),
+                nn.LeakyReLU(0.2, inplace=True),
             ]
 
         nf_mul_prev = nf_mul
@@ -208,7 +206,7 @@ class PatchGANDiscriminator(nn.Module):
                 bias=False,
             ),
             nn.BatchNorm2d(num_features=n_filters * nf_mul),
-            nn.LeakyReLU(0.2, True),
+            nn.LeakyReLU(0.2, inplace=True),
         ]
 
         sequence += [
@@ -223,10 +221,10 @@ class PatchGANDiscriminator(nn.Module):
 
         self.main = nn.Sequential(*sequence)
 
-    def forward(self, input: torch.Tensor):
-        return self.main(input)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.main(x)
 
-    def init_weights(self):
+    def init_weights(self) -> None:
         for m in self.modules():
             classname = m.__class__.__name__
             if classname.find("Conv") != -1:
@@ -249,9 +247,10 @@ class LPIPSWithDiscriminator(nn.Module):
         disc_factor: float = 1.0,
         disc_weight: float = 1.0,
         perceptual_weight: float = 1.0,
-        disc_conditional: bool = False,
         disc_loss: Literal["hinge", "vanilla"] = "hinge",
-    ):
+        *,
+        disc_conditional: bool = False,
+    ) -> None:
         super().__init__()
 
         self.kl_weight = kl_weight
@@ -278,7 +277,7 @@ class LPIPSWithDiscriminator(nn.Module):
         self,
         nll_loss: torch.Tensor,
         g_loss: torch.Tensor,
-        last_layer: Optional[torch.Tensor] = None,
+        last_layer: torch.Tensor,
     ) -> torch.Tensor:
         if last_layer is not None:
             nll_grads = torch.autograd.grad(
@@ -291,23 +290,10 @@ class LPIPSWithDiscriminator(nn.Module):
                 last_layer,
                 retain_graph=True,
             )[0]
-        else:
-            nll_grads = torch.autograd.grad(
-                nll_loss,
-                self.last_layer[0],
-                retain_graph=True,
-            )[0]
-            g_grads = torch.autograd.grad(
-                g_loss,
-                self.last_layer[0],
-                retain_graph=True,
-            )[0]
 
         d_weight = torch.norm(nll_grads) / (torch.norm(g_grads) + 1e-4)
         d_weight = torch.clamp(d_weight, 0.0, 1e4).detach()
-        d_weight = d_weight * self.discriminator_weight
-
-        return d_weight
+        return d_weight * self.discriminator_weight
 
     def _calc_loss(
         self,
@@ -315,27 +301,25 @@ class LPIPSWithDiscriminator(nn.Module):
         logits_fake: torch.Tensor,
     ) -> torch.Tensor:
         if self.disc_loss == "vanilla":
-            d_loss = 0.5 * (
-                torch.mean(torch.nn.functional.softplus(-logits_real))
-                + torch.mean(torch.nn.functional.softplus(logits_fake))
+            return 0.5 * (
+                torch.mean(f.softplus(-logits_real)) + torch.mean(f.softplus(logits_fake))
             )
 
-            return d_loss
-
         if self.disc_loss == "hinge":
-            loss_real = torch.mean(F.relu(1.0 - logits_real))
-            loss_fake = torch.mean(F.relu(1.0 + logits_fake))
-            d_loss = 0.5 * (loss_real + loss_fake)
+            loss_real = torch.mean(f.relu(1.0 - logits_real))
+            loss_fake = torch.mean(f.relu(1.0 + logits_fake))
+            return 0.5 * (loss_real + loss_fake)
 
-            return d_loss
+        msg = "loss function not found"
+        raise ValueError(msg)
 
     def _adopt_weight(
         self,
-        weight: torch.Tensor,
+        weight: float,
         global_step: int,
         threshold: int = 0,
         value: float = 0.0,
-    ):
+    ) -> float:
         if global_step < threshold:
             weight = value
         return weight
@@ -347,10 +331,10 @@ class LPIPSWithDiscriminator(nn.Module):
         posteriors: DiagonalGaussianDistribution,
         optimizer_idx: int,
         global_step: int,
-        last_layer: Optional[torch.Tensor] = None,
-        cond: Optional[torch.Tensor] = None,
-        weights: Optional[torch.Tensor] = None,
-    ):
+        last_layer: torch.Tensor,
+        cond: torch.Tensor | None = None,
+        weights: torch.Tensor | None = None,
+    ) -> torch.Tensor:
         rec_loss = torch.abs(inputs.contiguous() - reconstructions.contiguous())
 
         if self.perceptual_weight > 0:
@@ -394,9 +378,10 @@ class LPIPSWithDiscriminator(nn.Module):
                         g_loss,
                         last_layer=last_layer,
                     )
-                except RuntimeError:
+                except RuntimeError as e:
                     if self.training:
-                        raise ValueError("training is True")
+                        msg = "training is True"
+                        raise ValueError(msg) from e
 
                     d_weight = torch.tensor(0.0)
             else:
@@ -408,13 +393,11 @@ class LPIPSWithDiscriminator(nn.Module):
                 threshold=self.discriminator_iter_start,
             )
 
-            loss = (
+            return (
                 weighted_nll_loss
                 + self.kl_weight * kl_loss
                 + d_weight * disc_factor * g_loss
             )
-
-            return loss
 
         if optimizer_idx == 1:
             if cond is None:
@@ -446,9 +429,10 @@ class LPIPSWithDiscriminator(nn.Module):
                 threshold=self.discriminator_iter_start,
             )
 
-            d_loss = disc_factor * self._calc_loss(
+            return disc_factor * self._calc_loss(
                 logits_real=logits_real,
                 logits_fake=logits_fake,
             )
 
-            return d_loss
+        msg = "optimizer not found"
+        raise ValueError(msg)

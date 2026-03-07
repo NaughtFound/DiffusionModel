@@ -1,29 +1,31 @@
-from typing import Callable, Optional
+from collections.abc import Callable
+
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+
 from .base import Metric, MetricMeta
 
 
 class S3Meta(MetricMeta):
-    transform: Optional[Callable[[torch.Tensor], torch.Tensor]]
-    forward_method: Callable[[torch.Tensor, Optional[torch.Tensor]], torch.Tensor]
+    transform: Callable[[torch.Tensor], torch.Tensor] | None
+    forward_method: Callable[[torch.Tensor, torch.Tensor | None], torch.Tensor]
     dist_extractor: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.transform = None
 
 
 class S3(Metric):
-    def __init__(self, meta: S3Meta):
+    def __init__(self, meta: S3Meta) -> None:
         super().__init__(meta)
 
         self.meta = meta
 
     @torch.no_grad()
-    def calc(self, dataloader: DataLoader):
+    def calc(self, dataloader: DataLoader) -> torch.Tensor:
         dists = []
 
         for batch in tqdm(dataloader, desc="Calculating"):

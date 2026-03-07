@@ -1,28 +1,30 @@
-from typing import Callable, Optional
-import torch
-import torch.nn as nn
-from torch.utils.data import DataLoader
-import scipy.linalg
+from collections.abc import Callable
+
 import numpy as np
+import scipy.linalg
+import torch
+from torch import nn
+from torch.utils.data import DataLoader
 from tqdm import tqdm
+
 from .base import Metric, MetricMeta
 
 
 class FIDMeta(MetricMeta):
     inception: nn.Module
-    transform: Optional[Callable[[torch.Tensor], torch.Tensor]]
-    forward_method: Callable[[torch.Tensor, Optional[torch.Tensor]], torch.Tensor]
+    transform: Callable[[torch.Tensor], torch.Tensor] | None
+    forward_method: Callable[[torch.Tensor, torch.Tensor | None], torch.Tensor]
     num_images: int
     num_features: int
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.transform = None
 
 
 class _FIDPair:
-    def __init__(self, num_features: int, device: torch.device):
+    def __init__(self, num_features: int, device: torch.device) -> None:
         self.total = torch.zeros(
             num_features,
             dtype=torch.float32,
@@ -35,14 +37,14 @@ class _FIDPair:
             device=device,
         )
 
-    def update(self, features: torch.Tensor):
+    def update(self, features: torch.Tensor) -> None:
         self.total += features
         self.sigma += torch.outer(features, features)
 
-    def calc_mean(self, n: int):
+    def calc_mean(self, n: int) -> torch.Tensor:
         return self.total / n
 
-    def calc_cov(self, n: int):
+    def calc_cov(self, n: int) -> torch.Tensor:
         sub_matrix = torch.outer(self.total, self.total)
         sub_matrix = sub_matrix / n
 
@@ -50,7 +52,7 @@ class _FIDPair:
 
 
 class FID(Metric):
-    def __init__(self, meta: FIDMeta):
+    def __init__(self, meta: FIDMeta) -> None:
         super().__init__(meta)
 
         self.meta = meta
@@ -102,7 +104,9 @@ class FID(Metric):
         if np.iscomplexobj(covmean):
             if not np.allclose(np.diagonal(covmean).imag, 0, atol=1e-3):
                 m = np.max(np.abs(covmean.imag))
-                raise ValueError("Imaginary component {}".format(m))
+
+                msg = f"Imaginary component {m}"
+                raise ValueError(msg)
             covmean = covmean.real
 
         tr_covmean = np.trace(covmean)
@@ -123,7 +127,7 @@ class FID(Metric):
         )
 
     @torch.no_grad()
-    def calc(self, dataloader: DataLoader):
+    def calc(self, dataloader: DataLoader) -> torch.Tensor:
         r_pair, f_pair = self._calc_features(dataloader)
 
         return self._fid_score(

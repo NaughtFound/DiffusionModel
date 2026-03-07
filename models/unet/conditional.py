@@ -1,12 +1,13 @@
-from typing import Optional
 import torch
+
 from models.common.cfg import HasCFGBackBone
-from .base import UNet
+
 from . import modules as m
+from .base import UNet
 
 
 class ConditionalUNet(UNet, HasCFGBackBone):
-    def _build_attention(self):
+    def _build_attention(self) -> None:
         for f in self.features:
             self.down_attention.append(m.CrossAttention(f, self.emb_dim))
 
@@ -42,7 +43,7 @@ class ConditionalUNet(UNet, HasCFGBackBone):
         y: torch.Tensor,
     ) -> torch.Tensor:
         x = x_l[-1]
-        x_l = x_l[::-1]
+        x_l.reverse()
 
         for i in range(len(self.up)):
             x = self.up[i](x, x_l[i + 1], t)
@@ -57,16 +58,13 @@ class ConditionalUNet(UNet, HasCFGBackBone):
         y: torch.Tensor,
     ) -> torch.Tensor:
         x_l = self._encode(x, t, y)
-        x = self._decode(x_l, t, y)
-
-        return x
+        return self._decode(x_l, t, y)
 
     def forward(
         self,
         x: torch.Tensor,
         t: torch.Tensor,
-        y: Optional[torch.Tensor] = None,
-        only_encode: bool = False,
+        y: torch.Tensor | None = None,
     ) -> torch.Tensor:
         if t.dim() == 0:
             t = t.expand(len(x))
@@ -76,9 +74,6 @@ class ConditionalUNet(UNet, HasCFGBackBone):
         if y is None:
             y = torch.zeros((len(x), self.emb_dim), device=x.device)
 
-        if only_encode:
-            return self._encode(x, t, y)
-
         return self._encode_decode(x, t, y)
 
     def forward_with_cfg(
@@ -87,10 +82,10 @@ class ConditionalUNet(UNet, HasCFGBackBone):
         t: torch.Tensor,
         y: torch.Tensor,
         cfg_scale: float,
-        y_null: Optional[torch.Tensor] = None,
-        only_encode: bool = False,
+        y_null: torch.Tensor | None = None,
+        *,
         fast_cfg: bool = True,
-    ):
+    ) -> torch.Tensor:
         return super().forward_with_cfg(
             x,
             t,
@@ -98,5 +93,4 @@ class ConditionalUNet(UNet, HasCFGBackBone):
             cfg_scale,
             y_null,
             fast_cfg=fast_cfg,
-            only_encode=only_encode,
         )
