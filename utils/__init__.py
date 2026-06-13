@@ -53,6 +53,12 @@ def save_images(
 
         image = Image.fromarray(grid_numpy)
         image.save(file_path)
+
+        if metadata is not None:
+            meta_json = json.dumps(metadata)
+            with Path(root / f"{file_name}.json").open("w") as f:
+                f.write(meta_json)
+
     else:
         file_root = file_path.with_suffix("")
         file_ext = file_path.suffix
@@ -67,10 +73,10 @@ def save_images(
             image = Image.fromarray(image_numpy)
             image.save(file_root / f"{i}{file_ext}")
 
-    if metadata is not None:
-        meta_json = json.dumps(metadata)
-        with Path(root / "metadata.json").open("w") as f:
-            f.write(meta_json)
+        if metadata is not None:
+            meta_json = json.dumps(metadata)
+            with Path(file_root / "metadata.json").open("w") as f:
+                f.write(meta_json)
 
 
 def save_state_dict(
