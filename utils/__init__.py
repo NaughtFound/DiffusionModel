@@ -1,4 +1,5 @@
 import argparse
+import json
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +35,7 @@ def save_images(
     file_name: str,
     *,
     save_as_grid: bool = True,
+    metadata: dict[str, Any] | None = None,
     **kwargs,
 ) -> None:
     images = to_image(x)
@@ -41,7 +43,9 @@ def save_images(
     if isinstance(prefix, str):
         prefix = Path(prefix)
 
-    file_path = prefix / "results" / run_name / file_name
+    root = prefix / "results" / run_name
+    root.mkdir(parents=True, exist_ok=True)
+    file_path = root / file_name
 
     if save_as_grid:
         grid = torchvision.utils.make_grid(images, **kwargs)
@@ -62,6 +66,11 @@ def save_images(
             image_numpy = image_ts.permute(1, 2, 0).squeeze().cpu().numpy()
             image = Image.fromarray(image_numpy)
             image.save(file_root / f"{i}{file_ext}")
+
+    if metadata is not None:
+        meta_json = json.dumps(metadata)
+        with Path(root / "metadata.json").open("w") as f:
+            f.write(meta_json)
 
 
 def save_state_dict(
@@ -169,7 +178,7 @@ def add_prefixed_arguments(
             help=action.help,
             nargs=action.nargs,
             default=action.default,
-            type=action.type,
+            type=action.type,  # pyright: ignore[reportArgumentType]
             dest=f"{prefix}{action.dest}",
         )
 
